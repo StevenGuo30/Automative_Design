@@ -1,0 +1,11 @@
+{
+	"autodeskProduct":	"Fusion",
+	"type":	"script",
+	"author":	"Jiamiao_Guo",
+	"description":	{
+		"":	"Try fusion python API"
+	},
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true,
+	"iconFilename":	"ScriptIcon.svg"
+}
