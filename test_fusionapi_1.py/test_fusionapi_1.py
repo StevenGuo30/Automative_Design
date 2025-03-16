@@ -10,8 +10,8 @@ import adsk.fusion
 app = adsk.core.Application.get()
 ui = app.userInterface
 
-
-import adsk.core, adsk.fusion, traceback
+# Every time running this script, it will only add new features to the existing design.
+# If you want to start a new design, please create a new design and run this script again.
 
 
 def run(context):
@@ -22,15 +22,27 @@ def run(context):
         design = app.activeProduct
         rootComp = design.rootComponent
 
+        # Define three points to create a custom plane
+        point1 = adsk.core.Point3D.create(0, 0, 0)
+        point2 = adsk.core.Point3D.create(1, 0, 0)
+        point3 = adsk.core.Point3D.create(0, 1, 1)
+
+        # Create custom plane
+        try:
+            customPlane = create_custom_plane(rootComp, point1, point2, point3)
+        except:
+            ui.messageBox("Failed to create custom plane.")
         # Create sketches
 
         # Sketch 1 (XY plane)
         sketches = rootComp.sketches
         xyPlane = rootComp.xYConstructionPlane
-        sketch1 = sketches.add(xyPlane)
+        sketch1 = sketches.add(customPlane)
         lines1 = sketch1.sketchCurves.sketchLines
-        start1 = adsk.core.Point3D.create(0, 0, 0)
-        end1 = adsk.core.Point3D.create(10, 0, 0)
+        start1 = adsk.core.Point3D.create(
+            0, 0, 0
+        )  # Here is the local cordiantes of the sketch
+        end1 = adsk.core.Point3D.create(0, 15, 0)
         line1 = lines1.addByTwoPoints(start1, end1)
 
         # Sketch 2 (XY plane)
@@ -77,3 +89,27 @@ def run(context):
     except:
         if ui:
             ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
+
+
+# Define sketch plane using 3 points (used to create pipe sketch plane to connect air channels)
+def create_custom_plane(rootComp, point1, point2, point3):
+    # Create a new sketch on the XY plane
+    sketches = rootComp.sketches
+    xyPlane = rootComp.xYConstructionPlane
+    sketch = sketches.add(xyPlane)
+
+    # Add sketch points at the specified coordinates
+    sketchPoint1 = sketch.sketchPoints.add(point1)
+    sketchPoint2 = sketch.sketchPoints.add(point2)
+    sketchPoint3 = sketch.sketchPoints.add(point3)
+
+    # Create the construction plane through the three sketch points
+    planes = rootComp.constructionPlanes
+    planeInput = planes.createInput()
+    planeInput.setByThreePoints(sketchPoint1, sketchPoint2, sketchPoint3)
+    customPlane = planes.add(planeInput)
+
+    return customPlane
+
+
+# Create main body (used to creat main hexagonal body to connect modular part so that pipe can penetrate through it)
