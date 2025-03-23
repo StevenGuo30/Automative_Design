@@ -26,6 +26,11 @@ def run(context):
         point1 = adsk.core.Point3D.create(0, 0, 0)
         point2 = adsk.core.Point3D.create(1, 0, 0)
         point3 = adsk.core.Point3D.create(0, 1, 1)
+        
+        # Define start and end points for pipe path
+        # TODO: Needs to make a interface for entering start and end points
+        start1 = adsk.core.Point3D.create(0, 0, 0)
+        end1 = adsk.core.Point3D.create(0,1,1)
 
         # Create custom plane
         try:
@@ -34,42 +39,20 @@ def run(context):
             ui.messageBox("Failed to create custom plane.")
 
         # Create sketches
-
-        # Sketch 1 (XY plane)
+        # Sketch 1 (custom plane)
         sketches = rootComp.sketches
-        xyPlane = rootComp.xYConstructionPlane
         sketch1 = sketches.add(customPlane)
-        lines1 = sketch1.sketchCurves.sketchLines
-        start1 = adsk.core.Point3D.create(
-            0, 0, 0
-        )  # Here is the local cordiantes of the sketch
-        end1 = adsk.core.Point3D.create(0, 15, 0)
-        line1 = lines1.addByTwoPoints(start1, end1)
-
-        # Sketch 2 (XY plane)
-        sketch2 = sketches.add(xyPlane)
-        lines2 = sketch2.sketchCurves.sketchLines
-        start2 = adsk.core.Point3D.create(0, 5, 0)
-        mid2 = adsk.core.Point3D.create(5, 10, 0)
-        end2 = adsk.core.Point3D.create(10, 5, 0)
-        line2_1 = lines2.addByTwoPoints(start2, mid2)
-        line2_2 = lines2.addByTwoPoints(mid2, end2)
+        spline1 = create_pipe_path(rootComp, start1, end1, sketch1)
 
         # Create paths
         feats = rootComp.features
-        path1 = feats.createPath(line1)
-
-        # For path2, use ObjectCollection to include multiple lines
-        lineCollection = adsk.core.ObjectCollection.create()
-        lineCollection.add(line2_1)
-        lineCollection.add(line2_2)
-        path2 = feats.createPath(lineCollection)
+        path1 = feats.createPath(spline1)
 
         # Pipe feature
         pipes = feats.pipeFeatures
 
         # Set pipe diameter
-        pipeRadius = adsk.core.ValueInput.createByReal(0.5)  # Radius = 0.5 cm
+        pipeRadius = adsk.core.ValueInput.createByReal(1.5)  # Radius = 1.5 mm
 
         # Create pipe 1
         pipeInput1 = pipes.createInput(
@@ -77,13 +60,6 @@ def run(context):
         )
         pipeInput1.sectionRadius = pipeRadius
         pipe1 = pipes.add(pipeInput1)
-
-        # Create pipe 2
-        pipeInput2 = pipes.createInput(
-            path2, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-        )
-        pipeInput2.sectionRadius = pipeRadius
-        pipe2 = pipes.add(pipeInput2)
 
         ui.messageBox("Pipes successfully created.")
 
@@ -117,6 +93,52 @@ def create_custom_plane(rootComp, point1, point2, point3):
 # TODO: Needs to define connected hexagonal body. The distance between to hexagonal surface is fixed? Defined by the path of pipe?
 
 # Create pipe path (used to create path for pipe to follow)
+# Use global_to_local function to convert global coordinates to local coordinates
+def global_to_local(global_point, sketch):
+    # Get the parent component of the sketch
+    parent_component = sketch.parentComponent
+
+    # Get the normal vector of the sketch reference plane
+    normal = sketch.referencePlane.geometry.normal
+
+    # Get the origin of the sketch reference plane
+    origin = sketch.referencePlane.geometry.origin
+
+    # Calculate the sketch X and Y directions
+    x_direction = sketch.xDirection
+    y_direction = normal.crossProduct(x_direction)
+
+    # Create a transformation matrix from global to sketch local coordinates
+    transform = adsk.core.Matrix3D.create()
+    transform.setWithCoordinateSystem(origin, x_direction, y_direction, normal)
+
+    # Compute the inverse transformation matrix
+    inverse_transform = transform.copy()
+    inverse_transform.invert()
+
+    # Transform global point to local coordinates
+    local_point = global_point.copy()
+    local_point.transformBy(inverse_transform)
+
+    return local_point
+
 # TODO: Needs to use some diagram to optimize the best pipe path
-# TODO: Needs to change the start/end position into local coordinates of the sketch
-def 
+def get_optimized_pipe(start, end):
+    points = adsk.core.ObjectCollection.create()
+    points.add(start)
+    #for now just add one middle point for testing
+    middle1 = adsk.core.Point3D.create((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2)
+    points.add(middle1) 
+    points.add(end)
+    return points
+
+def create_pipe_path(rootComp, start, end, sketch):
+    start_local = global_to_local(start, sketch)
+    end_local = global_to_local(end, sketch)
+    
+    # Get the points to form the spline path
+    points = adsk.core.ObjectCollection.create()
+    points = get_optimized_pipe(start_local, end_local)
+    spline = sketch.sketchCurves.sketchFittedSplines.add(points)
+    
+    return spline
