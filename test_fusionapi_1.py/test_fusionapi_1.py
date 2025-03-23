@@ -32,6 +32,7 @@ def run(context):
             customPlane = create_custom_plane(rootComp, point1, point2, point3)
         except:
             ui.messageBox("Failed to create custom plane.")
+
         # Create sketches
 
         # Sketch 1 (XY plane)
@@ -113,3 +114,9 @@ def create_custom_plane(rootComp, point1, point2, point3):
 
 
 # Create main body (used to creat main hexagonal body to connect modular part so that pipe can penetrate through it)
+# TODO: Needs to define connected hexagonal body. The distance between to hexagonal surface is fixed? Defined by the path of pipe?
+
+# Create pipe path (used to create path for pipe to follow)
+# TODO: Needs to use some diagram to optimize the best pipe path
+# TODO: Needs to change the start/end position into local coordinates of the sketch
+def 
