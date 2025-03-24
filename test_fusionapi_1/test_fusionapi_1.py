@@ -12,7 +12,7 @@ ui = app.userInterface
 
 # Every time running this script, it will only add new features to the existing design.
 # If you want to start a new design, please create a new design and run this script again.
-
+     
 
 def run(context):
     ui = None
@@ -22,6 +22,7 @@ def run(context):
         design = app.activeProduct
         rootComp = design.rootComponent
 
+        # TODO: Read the paired points from the YAML file
         # Define three points to create a custom plane
         point1 = adsk.core.Point3D.create(0, 0, 0)
         point2 = adsk.core.Point3D.create(1, 0, 0)
