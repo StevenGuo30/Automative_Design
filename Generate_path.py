@@ -65,7 +65,7 @@ def generate_pipe_paths(point_dict, group_connections, pipe_d=1.5):
         np.array([dx, dy, dz])
         for dx in [-1, 0, 1]
         for dy in [-1, 0, 1]
-        for dz in [0, 1, 2]
+        for dz in [-1, 0, 1, 2]
         if not (dx == 0 and dy == 0 and dz == 0)
     ]
 
@@ -95,45 +95,37 @@ def generate_pipe_paths(point_dict, group_connections, pipe_d=1.5):
                 temp_info.append((gi, gj, False))
                 uf.union(i, j)
             else:
-                # Try all previous inserted points as bridge
-                for mid_idx in range(len(base_points), len(adjusted_points)):
-                    edge1 = (gi, mid_idx)
-                    edge2 = (mid_idx, gj)
-                    if (not is_intersecting(edge1, adjusted_points, global_edges + temp_edges, pipe_d) and
-                        not is_intersecting(edge2, adjusted_points, global_edges + temp_edges, pipe_d)):
-                        temp_edges.append(edge1)
-                        temp_edges.append(edge2)
-                        temp_info.append((edge1[0], edge1[1], True))
-                        temp_info.append((edge2[0], edge2[1], True))
-                        uf.union(i, j)
-                        print(f"[Avoid] Used existing point {mid_idx} between {gi}-{gj}")
-                        break
-                else:
-                    # Try inserting new midpoint if no existing works
-                    pi, pj = adjusted_points[gi], adjusted_points[gj]
-                    base_mid = (pi + pj) / 2
-                    inserted = False
-                    for direction in offset_directions:
-                        # Adjust scale as needed to avoid intersection
-                        for scale in [1, 1.5, 2, 2.5, 3]: 
-                            offset = direction * pipe_d * scale
-                            mid = base_mid + offset
-                            mid_idx = len(adjusted_points)
-                            adjusted_points.append(mid)
-                            edge1 = (gi, mid_idx)
-                            edge2 = (mid_idx, gj)
-                            if (not is_intersecting(edge1, adjusted_points, global_edges + temp_edges, pipe_d) and
-                                not is_intersecting(edge2, adjusted_points, global_edges + temp_edges, pipe_d)):
-                                temp_edges.append(edge1)
-                                temp_edges.append(edge2)
-                                temp_info.append((edge1[0], edge1[1], True))
-                                temp_info.append((edge2[0], edge2[1], True))
-                                uf.union(i, j)
-                                print(f"[Avoid] Inserted new point {mid_idx} between {gi}-{gj}")
-                                inserted = True
-                                break
-                        if inserted:
-                            break
+                pi, pj = adjusted_points[gi], adjusted_points[gj]
+                base_mid = (pi + pj) / 2
+                best_mid = None
+                best_length = float('inf')
+                best_idx = None
+
+                for direction in offset_directions:
+                    for scale in [1, 1.5, 2, 2.5, 3]:
+                        offset = direction * pipe_d * scale
+                        mid = base_mid + offset
+                        edge1_len = np.linalg.norm(pi - mid)
+                        edge2_len = np.linalg.norm(mid - pj)
+                        total_len = edge1_len + edge2_len
+                        mid_idx = len(adjusted_points)
+
+                        # Temporarily test
+                        if (not is_intersecting((gi, mid_idx), adjusted_points + [mid], global_edges + temp_edges, pipe_d) and
+                            not is_intersecting((mid_idx, gj), adjusted_points + [mid], global_edges + temp_edges, pipe_d)):
+                            if total_len < best_length:
+                                best_mid = mid
+                                best_length = total_len
+                                best_idx = mid_idx
+
+                if best_mid is not None:
+                    adjusted_points.append(best_mid)
+                    temp_edges.append((gi, best_idx))
+                    temp_edges.append((best_idx, gj))
+                    temp_info.append((gi, best_idx, True))
+                    temp_info.append((best_idx, gj, True))
+                    uf.union(i, j)
+                    print(f"[Avoid] Inserted optimal midpoint {best_idx} between {gi}-{gj}")
 
         global_edges.extend(temp_edges)
         edge_info.extend(temp_info)
@@ -176,19 +168,43 @@ def visualize_pipe_animation(frames):
     plt.tight_layout()
     plt.show()
 
-
-# ---------------- Main Function ----------------
-if __name__ == "__main__":
-    # Example points and connections
+# ---------------- Complex Test Case ----------------
+def test_complex_case():
     point_dict = {
         'A': [0, 0, 0],
         'B': [0, 1, 0],
         'C': [1, 1, 0],
         'D': [1, 0, 0],
-        'E': [0.5, 1, 0.2]
+        'E': [0.5, 1, 0.2],
+        'F': [0.5, 0.5, 0.5],
+        'G': [0.25, 0.75, 0.8],
+        'H': [1.2, 1.2, 0.1],
+        'I': [1.2, 0.2, 0.1],
+        'J': [-0.3, 0.8, 0.2],
+        'K': [0.5, 0.5, -0.5],
     }
-
-    group_connections = [['A', 'C', 'E'], ['B', 'D']]
-
-    frames, points, edges = generate_pipe_paths(point_dict, group_connections, pipe_d=0.15)
+    group_connections = [
+        ['A', 'C', 'E', 'F', 'G'],
+        ['B', 'D', 'H', 'I'],
+        ['J', 'K']
+    ]
+    frames, adjusted_points, edges = generate_pipe_paths(point_dict, group_connections, pipe_d=0.15)
     visualize_pipe_animation(frames)
+
+
+# ---------------- Main Function ----------------
+if __name__ == "__main__":
+    # Example points and connections
+    # point_dict = {
+    #     'A': [0, 0, 0],
+    #     'B': [0, 1, 0],
+    #     'C': [1, 1, 0],
+    #     'D': [1, 0, 0],
+    #     'E': [0.5, 1, 0.2]
+    # }
+
+    # group_connections = [['A', 'C', 'E'], ['B', 'D']]
+
+    # frames, points, edges = generate_pipe_paths(point_dict, group_connections, pipe_d=0.15)
+    # visualize_pipe_animation(frames)
+    test_complex_case()
