@@ -5,16 +5,31 @@ def input_interface():
 
     # Input points
     while True:
-        print("\nEnter coordinates for the point:")
-        x = float(input("X: "))
-        y = float(input("Y: "))
-        z = float(input("Z: "))
+        print("\nEnter coordinates for the point:(use comma to separate x,y,z)")
+        print("Example: 1,2,3")
+        coordinates = input("Coordinates: ")
+        coords = [float(x.strip()) for x in coordinates.split(',') if x.strip().replace('.', '', 1).isdigit()]
+        if len(coords) != 3:
+            print("Invalid input. Please enter exactly three numbers.")
+            continue
+        x, y, z = coords
+        
+        # Input direction
+        print("\nEnter direction for the point (use comma to separate x,y,z)")
+        print("Example: 1,0,0")
+        direction = input("Direction: ")
+        direction = [float(x.strip()) for x in direction.split(',') if x.strip().replace('.', '', 1).isdigit()]
+        if len(direction) != 3:
+            print("Invalid input. Please enter exactly three numbers.")
+            continue
+        x_dir, y_dir, z_dir = direction
 
         is_linkage = input("Is it linkage (True/False): ").strip().lower()
         is_linkage = True if is_linkage in ['true', '1', 't', 'yes', 'y'] else False
 
         points.append({
             'coordinates': {'x': x, 'y': y, 'z': z},
+            'directions': {'x': x_dir, 'y': y_dir, 'z': z_dir},
             'is_linkage': is_linkage
         })
 
@@ -29,7 +44,7 @@ def input_interface():
     while remaining_points:
         print("\nCurrent points:")
         for idx, pt in enumerate(remaining_points):
-            print(f"{idx+1}: Coordinates={pt['coordinates']}, is_linkage={pt['is_linkage']}")
+            print(f"{idx+1}: Coordinates={pt['coordinates']}, Direction={pt['directions']}, is_linkage={pt['is_linkage']}")
 
         first_idx = 0
         first_point = remaining_points[first_idx]

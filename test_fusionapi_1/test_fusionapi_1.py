@@ -31,8 +31,15 @@ def run(context):
         # Define start and end points for pipe path
         # TODO: Needs to make a interface for entering start and end points
         start1 = adsk.core.Point3D.create(0, 0, 0)
-        end1 = adsk.core.Point3D.create(0,1,1)
+        end1 = adsk.core.Point3D.create(5,5,5)
+        
+        start2 = adsk.core.Point3D.create(0, 0, 0)
+        end2 = adsk.core.Point3D.create(2,3,3)
 
+        # Initialize sketches and features
+        sketches = rootComp.sketches
+        feats = rootComp.features
+        
         # Create custom plane
         try:
             customPlane = create_custom_plane(rootComp, point1, point2, point3)
@@ -40,27 +47,20 @@ def run(context):
             ui.messageBox("Failed to create custom plane.")
 
         # Create sketches
-        # Sketch 1 (custom plane)
-        sketches = rootComp.sketches
-        sketch1 = sketches.add(customPlane)
-        spline1 = create_pipe_path(rootComp, start1, end1, sketch1)
-
-        # Create paths
-        feats = rootComp.features
-        path1 = feats.createPath(spline1)
-
-        # Pipe feature
-        pipes = feats.pipeFeatures
-
-        # Set pipe diameter
-        pipeRadius = adsk.core.ValueInput.createByReal(1.5)  # Radius = 1.5 mm
-
-        # Create pipe 1
-        pipeInput1 = pipes.createInput(
-            path1, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-        )
-        pipeInput1.sectionRadius = pipeRadius
-        pipe1 = pipes.add(pipeInput1)
+        try:
+            sketch1 = sketches.add(customPlane)
+            path1= create_pipe_path(rootComp, feats, start1, end1, sketch1)
+            sketch2 = sketches.add(customPlane)
+            path2= create_pipe_path(rootComp, feats, start2, end2, sketch2)
+        except:
+            ui.messageBox("Failed to create sketches.")
+        
+        # Create pipe feature
+        try:
+            create_pipe(feats, path1, 0.08) # Radius unit mm
+            create_pipe(feats, path2, 0.1) # Radius unit mm
+        except:
+            ui.messageBox("Failed to create pipe features.")
 
         ui.messageBox("Pipes successfully created.")
 
@@ -133,7 +133,7 @@ def get_optimized_pipe(start, end):
     points.add(end)
     return points
 
-def create_pipe_path(rootComp, start, end, sketch):
+def create_pipe_path(rootComp, feats, start, end, sketch):
     start_local = global_to_local(start, sketch)
     end_local = global_to_local(end, sketch)
     
@@ -142,4 +142,26 @@ def create_pipe_path(rootComp, start, end, sketch):
     points = get_optimized_pipe(start_local, end_local)
     spline = sketch.sketchCurves.sketchFittedSplines.add(points)
     
-    return spline
+    # Create paths
+
+    path = feats.createPath(spline)
+    
+    return path
+
+# Create pipe feature based on the sketch
+def create_pipe(feats, path, radius):
+        # Pipe feature
+        pipes = feats.pipeFeatures
+
+        # Set pipe diameter
+        pipeRadius = adsk.core.ValueInput.createByReal(radius/10) # Convert mm to cm
+
+        # Create pipe 1
+        pipeInput1 = pipes.createInput(
+            path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+        )
+        pipeInput1.sectionRadius = pipeRadius
+        pipeCreated = pipes.add(pipeInput1)
+        
+        return
+        
