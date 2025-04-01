@@ -12,7 +12,8 @@ ui = app.userInterface
 
 # Every time running this script, it will only add new features to the existing design.
 # If you want to start a new design, please create a new design and run this script again.
-     
+
+# ALL Units used in Fusion API are in cm.
 
 def run(context):
     ui = None
@@ -57,8 +58,8 @@ def run(context):
         
         # Create pipe feature
         try:
-            create_pipe(feats, path1, 0.08) # Radius unit mm
-            create_pipe(feats, path2, 0.1) # Radius unit mm
+            create_pipe(feats, path1, outDiameter=0.8, wallThickness=0.05) # Radius unit mm
+            create_pipe(feats, path2, outDiameter=0.5, wallThickness=0.02) # Radius unit mm
         except:
             ui.messageBox("Failed to create pipe features.")
 
@@ -149,19 +150,35 @@ def create_pipe_path(rootComp, feats, start, end, sketch):
     return path
 
 # Create pipe feature based on the sketch
-def create_pipe(feats, path, radius):
-        # Pipe feature
-        pipes = feats.pipeFeatures
+def create_pipe(feats, path, outDiameter, wallThickness):
+    """
+    Creates a hollow pipe with the specified outer diameter and wall thickness.
 
-        # Set pipe diameter
-        pipeRadius = adsk.core.ValueInput.createByReal(radius/10) # Convert mm to cm
+    Parameters:
+    feats (adsk.fusion.Features): The Features collection of the current component.
+    path (adsk.fusion.Path): The path along which the pipe is created.
+    outDiameter (float): The outer diameter of the pipe in centimeters.
+    wallThickness (float): The thickness of the pipe wall in centimeters.
 
-        # Create pipe 1
-        pipeInput1 = pipes.createInput(
-            path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-        )
-        pipeInput1.sectionRadius = pipeRadius
-        pipeCreated = pipes.add(pipeInput1)
-        
-        return
-        
+    Returns:
+    adsk.fusion.PipeFeature: The created pipe feature object.
+    """
+    # Get the PipeFeatures collection
+    pipeFeatures = feats.pipeFeatures
+
+    # Create a PipeFeatureInput object
+    pipeInput = pipeFeatures.createInput(path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+
+    # Set the cross-sectional size (outer diameter)
+    pipeInput.sectionSize = adsk.core.ValueInput.createByReal(outDiameter)
+
+    # Set the pipe to be hollow
+    pipeInput.isHollow = True
+
+    # Set the wall thickness
+    pipeInput.wallThickness = adsk.core.ValueInput.createByReal(wallThickness)
+
+    # Create the pipe feature
+    pipeFeature = pipeFeatures.add(pipeInput)
+
+    return pipeFeature
