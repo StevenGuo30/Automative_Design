@@ -206,5 +206,7 @@ if __name__ == "__main__":
     group_connections = [['A', 'C', 'E'], ['B', 'D']]
 
     frames, points, edges = generate_pipe_paths(point_dict, group_connections, pipe_d=0.15)
+    print(points)
+    print(edges)
     visualize_pipe_animation(frames)
     # test_complex_case()

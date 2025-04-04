@@ -16,8 +16,9 @@ from input_interface import input_interface
     (["0, 0, 0","0,0,1", 'False', 'no', # Second test case is a switch example
       "0, 1, 0","0,0,1", 'False', 'no',
       "2, 0, 1","0,1,0", 'True', 'no',
-      "3, 1, 0","0,1,0", 'True', 'yes',
-      '3', # 1,3 is connected
+      "3, 1, 0","0,1,0", 'True', 'no',
+      "2, 2, 0","0,0,1", 'True', 'yes',
+      '3,5', # 1,3 is connected
       '2'], None), # 2,4 is connected
 ])
  

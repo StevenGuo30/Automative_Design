@@ -7,9 +7,18 @@ All units are in centimeters.
 import traceback
 import adsk.core
 import adsk.fusion
+import yaml
+import os
+import sys
+
+script_dir = os.path.dirname(os.path.abspath(__file__))  # script directory
+sys.path.append("../fusion_api_example")
+yaml_path = os.path.join(script_dir, "paired_points.yaml")
+
+from Generate_path import generate_pipe_paths
 
 
-def create_custom_plane(rootComp, point1, point2, point3):
+def create_custom_plane(rootComp, point1, point2, point3=(-0.05,-0.04,-0.03)): # default point3; so that the function can be called with only 2 points
     """
     Creates a construction plane using three 3D points.
 
@@ -79,7 +88,9 @@ def get_optimized_pipe(start, end):
     """
     points = adsk.core.ObjectCollection.create()
     points.add(start)
-    middle = adsk.core.Point3D.create((start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2)
+    middle = adsk.core.Point3D.create(
+        (start.x + end.x) / 2, (start.y + end.y) / 2, (start.z + end.z) / 2
+    )
     points.add(middle)
     points.add(end)
     return points
@@ -121,13 +132,27 @@ def create_pipe(feats, path, outDiameter, wallThickness):
     adsk.fusion.PipeFeature: The created pipe feature object.
     """
     pipeFeatures = feats.pipeFeatures
-    pipeInput = pipeFeatures.createInput(path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+    pipeInput = pipeFeatures.createInput(
+        path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+    )
     pipeInput.sectionSize = adsk.core.ValueInput.createByReal(outDiameter)
     pipeInput.isHollow = True
     pipeInput.wallThickness = adsk.core.ValueInput.createByReal(wallThickness)
     pipeFeature = pipeFeatures.add(pipeInput)
     return pipeFeature
 
+def read_points():
+        with open(yaml_path, "r") as f:
+            data = yaml.safe_load(f)
+        point_dict = {}
+        group_connections = []
+        group = []
+        for group in data:
+            for point in group:
+                point_dict[point["name"]] = [point["coordinates"]["x"], point["coordinates"]["y"], point["coordinates"]["z"]]
+                group.append(point["name"])
+            group_connections.append(group)
+        return point_dict, group_connections
 
 def run(context):
     """
@@ -142,23 +167,18 @@ def run(context):
 
         feats = rootComp.features
         sketches = rootComp.sketches
+        point_dict, group_connections = read_points()
 
-        point1 = adsk.core.Point3D.create(0, 0, 0)
-        point2 = adsk.core.Point3D.create(1, 0, 0)
-        point3 = adsk.core.Point3D.create(0, 1, 1)
-        start1 = adsk.core.Point3D.create(0, 0, 0)
-        end1 = adsk.core.Point3D.create(5, 5, 5)
-        start2 = adsk.core.Point3D.create(0, 0, 0)
-        end2 = adsk.core.Point3D.create(2, 3, 3)
+        _,points,edges = generate_pipe_paths(point_dict, group_connections)
 
-        customPlane = create_custom_plane(rootComp, point1, point2, point3)
-        sketch1 = sketches.add(customPlane)
-        path1 = create_pipe_path(rootComp, feats, start1, end1, sketch1)
-        sketch2 = sketches.add(customPlane)
-        path2 = create_pipe_path(rootComp, feats, start2, end2, sketch2)
+        for edge in edges:
+            point1=adsk.core.Point3D.create(*points[edge[0]])
+            point2=adsk.core.Point3D.create(*points[edge[1]])
+            customPlane = create_custom_plane(rootComp, point1, point2)
+            sketch = sketches.add(customPlane)
+            path = create_pipe_path(rootComp, feats, point1, point2, sketch)
 
-        create_pipe(feats, path1, outDiameter=0.8, wallThickness=0.05)
-        create_pipe(feats, path2, outDiameter=0.5, wallThickness=0.02)
+            create_pipe(feats, path, outDiameter=0.8, wallThickness=0.05)
 
         ui.messageBox("Pipes successfully created.")
 
