@@ -9,6 +9,9 @@ import os
 
 np.random.seed(42) # TODO: Remove this line for randomization
 
+# TODO: Organize the code and combined it with the input interface
+# TODO: Group 2 connections is a little bit strange, need to be fixed(at point 5, there is a sharp turn which should be smooth)
+# TODO: Add a constrain to the curvature of the spline, so that it is not too sharp
 
 
 # ---------------- two methods to generate the spline ----------------
@@ -206,6 +209,10 @@ def rrt_path(start, goal, obstacle_points,
 
 def smooth_path_with_bspline(path, num_points=100):
     path = np.array(path)
+    if len(path) <= 3:
+        # Not enough points for cubic spline, return original or linear interp
+        return path.copy()
+
     tck, u = splprep([path[:,0], path[:,1], path[:,2]], s=0)
     u_fine = np.linspace(0, 1, num_points)
     x_fine, y_fine, z_fine = splev(u_fine, tck)
@@ -218,6 +225,20 @@ def is_path_collision(curve, obstacle_kdtree, safe_radius=0.2, step_size=0.05):
             return True
     return False
 
+def is_self_collision(curve, pipe_radius, sample_ds=0.05):
+    sampled = resample_curve(curve, sample_ds)
+    tree = cKDTree(sampled)
+
+    for i, pt in enumerate(sampled):
+        # search for points within 2 * pipe_radius
+        idxs = tree.query_ball_point(pt, r=2 * pipe_radius)
+
+        for j in idxs:
+            if abs(i - j) > 2:  # exclude adjacent points
+                return True
+    return False
+
+
 def global_smooth_and_check(curve_segments, obstacle_points, pipe_radius=0.2, num_points=300):
     if len(curve_segments) == 0:
         raise ValueError("No segments to smooth!")
@@ -229,11 +250,6 @@ def global_smooth_and_check(curve_segments, obstacle_points, pipe_radius=0.2, nu
         return smooth_curve, False
     else:
         return smooth_curve, True
-
-
-
-
-
 
 
 
@@ -250,20 +266,26 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
 
         success = False
 
-        # --------------- Phase 1: change the random seeds ---------------
+        # --------------- Phase 1: Direct arc/interpolation with retry ---------------
         for attempt in range(max_retries):
-##           np.random.seed(None)  
-            try:               
+            try:
                 if len(group_points) == 2:
                     curve, _ = generate_arc_3d(group_points[0], group_points[1], arc_height_ratio, num_points)
                 else:
-                    curve = interpolate_curve(group_points,arc_height_ratio, num_points)
-               
+                    curve = interpolate_curve(group_points, arc_height_ratio, num_points)
+
                 collision = False
+
+                # Check collision with existing curves
                 for existing_curve in all_success_curves:
                     if is_pipe_collision(curve, existing_curve, pipe_radius, sample_ds):
                         collision = True
                         break
+
+                # Check self-intersection
+                if not collision and is_self_collision(curve, pipe_radius, sample_ds):
+                    print(f"  Self-collision detected in group {group_idx+1} attempt {attempt+1}")
+                    collision = True
 
                 if not collision:
                     print(f"Group {group_idx+1} succeeded in {attempt+1} tries (no collision)!")
@@ -275,7 +297,7 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
             except Exception as e:
                 print(f"Error in attempt {attempt+1}: {e}")
 
-        # --------------- Phase 2: RRT ---------------
+        # --------------- Phase 2: RRT-based path planning with smoothing ---------------
         if not success:
             print(f" Random seed retries failed for Group {group_idx+1}, trying segmented RRT + global smoothing...")
 
@@ -298,7 +320,6 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
                 start = group_points[i]
                 goal = group_points[i + 1]
 
-                
                 rrt_result = rrt_path(
                     start=start,
                     goal=goal,
@@ -315,7 +336,7 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
                 if rrt_result is None:
                     print(f" RRT failed between point {i} and {i+1}, giving up this group.")
                     break
-           
+
                 smoothed_segment = smooth_path_with_bspline(rrt_result, num_points=100)
 
                 if is_path_collision(smoothed_segment, cKDTree(obstacle_points), safe_radius=pipe_radius):
@@ -329,19 +350,19 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
 
             else:
                 full_curve = np.vstack(curve_segments)
-
                 globally_smoothed_curve = smooth_path_with_bspline(full_curve, num_points=300)
 
-                if not is_path_collision(globally_smoothed_curve, cKDTree(obstacle_points), safe_radius=pipe_radius):
+                if is_path_collision(globally_smoothed_curve, cKDTree(obstacle_points), safe_radius=pipe_radius):
+                    print(f" Global smoothed curve collides with existing pipes, group {group_idx+1} failed.")
+                elif is_self_collision(globally_smoothed_curve, pipe_radius, sample_ds):
+                    print(f" Self-collision in smoothed curve, group {group_idx+1} failed.")
+                else:
                     all_success_curves.append(globally_smoothed_curve)
                     frames.append(globally_smoothed_curve.copy())
                     print(f" Group {group_idx+1} succeeded with segmented RRT and global smoothing!")
                     success = True
-                else:
-                    print(f" Global smoothed curve still collides, group {group_idx+1} failed.")
 
-
-        # --------------- Phase 3: not success---------------
+        # --------------- Phase 3: Give up this group ---------------
         if not success:
             print(f" Group {group_idx+1} failed after all retries and insertions.")
 
@@ -454,7 +475,7 @@ if __name__ == "__main__":
     
     arc_height_ratio=0.22
     num_points=50
-    pipe_radius=0.15
+    pipe_radius=0.01
     sample_ds=0.05
     max_retries=10  #30
     max_insertions=5
@@ -469,6 +490,8 @@ if __name__ == "__main__":
         max_insertions      
     )
     
+    print(f"Generated {len(curves)} curves.")
+    # Save the spline paths to a JSON file
     save_path = os.path.join(os.path.dirname(__file__), "exported_splines.json")
     save_splines_to_json(curves, save_path, num_sample_points=300)
     print(f"Spline paths saved to: {save_path}")
