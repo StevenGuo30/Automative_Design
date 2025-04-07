@@ -12,7 +12,7 @@ import os
 import sys
 
 script_dir = os.path.dirname(os.path.abspath(__file__))  # script directory
-sys.path.append("../fusion_api_example")
+sys.path.append("../../fusion_api_example")
 yaml_path = os.path.join(script_dir, "paired_points.yaml")
 
 from Generate_path import generate_pipe_paths
@@ -164,6 +164,10 @@ def run(context):
         ui = app.userInterface
         design = app.activeProduct
         rootComp = design.rootComponent
+        ui.messageBox("Creating pipes...")
+        if not design:
+            ui.messageBox("No active design")
+            return
 
         feats = rootComp.features
         sketches = rootComp.sketches
