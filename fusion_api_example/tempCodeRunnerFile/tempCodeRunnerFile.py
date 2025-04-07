@@ -151,7 +151,7 @@ def create_pipe(feats, path,isHollow = True, outDiameter = 0.8,  wallThickness=0
 
 
 
-def read_spline_json(json_path):
+def read_json(json_path):
     with open(json_path, 'r') as f:
         return json.load(f)
 
@@ -170,16 +170,6 @@ def create_spline_path(rootComp, points_3d):
     path = rootComp.features.createPath(spline)
     return path
 
-# def create_pipe_from_spline(rootComp, spline, outer_diameter=0.8, wall_thickness=0.05):
-#     path = rootComp.features.createPath(spline)
-
-#     pipe_feats = rootComp.features.pipeFeatures
-#     pipe_input = pipe_feats.createInput(path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-#     pipe_input.isSolid = True
-#     pipe_input.outerDiameter = adsk.core.ValueInput.createByReal(outer_diameter)
-#     pipe_input.wallThickness = adsk.core.ValueInput.createByReal(wall_thickness)
-
-#     pipe_feats.add(pipe_input)
 
 def run(context):
     ui = None
@@ -192,17 +182,25 @@ def run(context):
         
         print("Starting to create pipes process...")
 
-        json_path = os.path.join(script_dir, "exported_splines.json") # Path to the JSON file
+        json_path = os.path.join(project_root, "exported_splines.json") # Path to the JSON file
+        points_path = os.path.join(project_root, "paired_points.json") # Path to the paired points JSON file
 
         if not os.path.exists(json_path):
             ui.messageBox(f"File not found: {json_path}")
             return
+        
+        if not os.path.exists(points_path):
+            ui.messageBox(f"File not found: {points_path}")
+            return
 
-        all_spline_data = read_spline_json(json_path)
+        all_spline_data = read_json(json_path)
+        pipe_radius = read_json(points_path)["pipe_radius"] # get the pipe radius from paired_points.json
+        outDiameter = pipe_radius * 2 # outer diameter is twice the radius
+
 
         for idx, spline_pts in enumerate(all_spline_data):
             path = create_spline_path(rootComp, spline_pts)
-            create_pipe(feats, path, isHollow=False, outDiameter=0.01)
+            create_pipe(feats, path, isHollow=False, outDiameter=outDiameter)
 
         ui.messageBox("All splines converted to pipes successfully!")
 

@@ -2,6 +2,12 @@
 import os
 import json
 import numpy as np
+import sys
+
+# load upper of the upper directory
+script_dir = os.path.dirname(os.path.abspath(__file__))  # 当前脚本所在目录
+upper_upper_dir = os.path.abspath(os.path.join(script_dir, "../.."))
+sys.path.append(upper_upper_dir)
 
 from path_generation import interpolate_path
 from collision import is_pipe_collision, is_self_collision
@@ -24,7 +30,7 @@ def save_splines_to_json(spline_list, output_path, num_sample_points=300):
         json.dump(serialized, f, indent=2)
 
 def generate_pipe_paths(point_dict, group_connections, arc_height_ratio, num_points,
-                        pipe_radius, sample_ds, max_retries=100):
+                        pipe_radius, sample_ds, max_retries=10):
     base_points = {name: np.array(coord) for name, coord in point_dict.items()}
     curves = []
     frames = []
@@ -56,8 +62,7 @@ def generate_pipe_paths(point_dict, group_connections, arc_height_ratio, num_poi
     return frames, all_success_curves
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    json_path = os.path.join(script_dir, "paired_points.json")
+    json_path = os.path.join(upper_upper_dir, "paired_points.json")
 
     if os.path.exists(json_path):
         with open(json_path, "r") as f:

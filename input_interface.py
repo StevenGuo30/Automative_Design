@@ -87,30 +87,60 @@ def input_interface():
         connect_to = input(
             f"\nEnter point number(s) to connect with point {first_idx+1} (use comma to separate multiple points, e.g., 2,3): "
         )
+        
+        # check if the input is empty
         connect_indices = [
-            int(x.strip()) for x in connect_to.split(",") if x.strip().isdigit()
+            int(x.strip()) - 1 for x in connect_to.split(",") if x.strip().isdigit()
         ]
-        connect_to_points = [remaining_points[x - 1] for x in connect_indices]
+
+        if not connect_indices:
+            print("No valid connection indices provided. Please try again.")
+            continue
+
+        # check if the indices are valid
+        if any(i >= len(remaining_points) or i < 0 for i in connect_indices):
+            print("Invalid connection index entered. Please check your pairing.")
+            continue
+
+        # check if the first point is in the connect_indices
+        if first_idx in connect_indices:
+            print("Cannot connect a point to itself.")
+            continue
+
+        connect_to_points = [remaining_points[i] for i in connect_indices]
+
         # Save paired points
-        connections_points = [first_point] + [
-            connect_to_point for connect_to_point in connect_to_points
-        ]
-        connection_idx = [first_idx] + [i - 1 for i in connect_indices]
+        connections_points = [first_point] + connect_to_points
+        connection_idx = [first_idx] + connect_indices
         connections.append(connections_points)
 
         # Remove paired points without changing original numbering
         for idx in sorted(connection_idx, reverse=True):
-            remaining_points.pop(idx)  # pop items in reverse order to avoid index error
+            remaining_points.pop(idx)
 
     print("\nFinal paired points:")
     for idx, pair in enumerate(connections):
         print(f"{idx+1}: {pair}")
+    
+    # input pipe radius
+    while True:
+        pipe_radius_input = input("\nEnter pipe radius for all connections (cm): ").strip()
+        try:
+            pipe_radius = float(pipe_radius_input)
+            break
+        except ValueError:
+            print("Invalid input. Please enter a numeric value for pipe radius.")
 
-    # ✅ 保存为 JSON 格式
+    # save to JSON
+    output_data = {
+        "pipe_radius": pipe_radius,
+        "connections": connections
+    }
+
     with open(json_path, "w") as file:
-        json.dump(connections, file, indent=2)
+        json.dump(output_data, file, indent=2)
 
-    print(f"\nPaired points saved to {json_path}")
+    print(f"\nPaired points and pipe radius saved to {json_path}")
 
 
 if __name__ == "__main__":
