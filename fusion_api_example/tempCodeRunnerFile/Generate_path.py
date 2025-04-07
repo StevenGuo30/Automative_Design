@@ -6,12 +6,15 @@ from scipy.spatial import cKDTree
 from scipy.interpolate import splprep, splev
 import json
 import os
+import sys
+
+from input_interface import input_interface
 
 np.random.seed(42) # TODO: Remove this line for randomization
 
 # TODO: Organize the code and combined it with the input interface
 # TODO: Group 2 connections is a little bit strange, need to be fixed(at point 5, there is a sharp turn which should be smooth)
-# TODO: Add a constrain to the curvature of the spline, so that it is not too sharp
+
 
 
 # ---------------- two methods to generate the spline ----------------
@@ -432,7 +435,7 @@ def save_splines_to_json(spline_list, output_path, num_sample_points=300):
 
 
 # ---------------- Complex Test Case ----------------
-def test_complex_case():
+def test_complex_case(pipe_radius=0.01, sample_ds=0.05, max_retries=10, max_insertions=5):
     point_dict = {
         'A': [0, 0, 0],
         'B': [0, 1, 0],
@@ -451,27 +454,47 @@ def test_complex_case():
         ['B', 'D', 'H', 'I'],
         ['J', 'K']
     ]
-    frames, adjusted_points, edges = generate_pipe_paths(point_dict, group_connections, pipe_d=0.15)
+    
+    frames, curves = generate_pipe_paths(
+        point_dict, 
+        group_connections, 
+        pipe_radius,      
+        sample_ds,        
+        max_retries,        
+        max_insertions      
+    )
     visualize_pipe_animation(frames)
 
 
 # ---------------- Main Function ----------------
 if __name__ == "__main__":
-    # Example points and connections
-    point_dict = {
-        'A': [0, 0, 0],
-        'B': [0, 1, 0],
-        'C': [1, 1, 0],
-        'D': [1, 0, 0],
-        'E': [0.5, 1, 0.2],
-        'G': [0.25, 0.75, 0.8],
-        'H': [1.2, 1.2, 0.1]
-    }
+    # read point_dict and group_connections from paired_points.json
+    # if not exist, use input_interface to generate it
+    script_dir = os.path.dirname(os.path.abspath(__file__)) 
+    json_path = os.path.join(script_dir, "paired_points.json")
 
-    group_connections = [
-        ['A', 'C', 'E', 'G'],   
-        ['D', 'B','H']              
-    ]
+    if os.path.exists(json_path):
+        with open(json_path, "r") as f:
+            data = json.load(f)
+
+        point_dict = {}          # point name and coordinates
+        group_connections = []   # group name and point names
+
+        for group in data:
+            group_names = []
+            for point in group:
+                name = point["name"]
+                coords = point["coordinates"]
+                point_dict[name] = [coords["x"], coords["y"], coords["z"]]
+                group_names.append(name)
+            group_connections.append(group_names)
+        print(f"Loaded {len(group_connections)} groups from {json_path}.")
+    else:
+        print(f"{json_path} not found, generating points with input interface...")
+        point_dict, group_connections = input_interface()
+        with open(json_path, "w") as f:
+            json.dump(group_connections, f, indent=2)
+        print(f"Saved {len(group_connections)} groups to {json_path}.")
     
     arc_height_ratio=0.22
     num_points=50
