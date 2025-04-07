@@ -3,7 +3,7 @@ import os
 import pytest
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
-target_dir = os.path.abspath(os.path.join(currentdir, "../fusion_api_example"))
+target_dir = os.path.abspath(os.path.join(currentdir, "../fusion_api_example/tempCodeRunnerFile/"))
 sys.path.append(target_dir)
 
 from input_interface import input_interface

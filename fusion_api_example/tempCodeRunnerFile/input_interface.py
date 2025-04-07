@@ -1,9 +1,9 @@
-import yaml
 import os
+import json
 import string
 
 script_dir = os.path.dirname(os.path.abspath(__file__))  # 当前脚本所在目录
-yaml_path = os.path.join(script_dir, "paired_points.yaml")
+json_path = os.path.join(script_dir, "paired_points.json")  # 改为 JSON 路径
 
 
 def name_generator():
@@ -106,11 +106,11 @@ def input_interface():
     for idx, pair in enumerate(connections):
         print(f"{idx+1}: {pair}")
 
-    # Optionally save to YAML for future use
-    with open(yaml_path, "w") as file:
-        yaml.dump(connections, file)
+    # ✅ 保存为 JSON 格式
+    with open(json_path, "w") as file:
+        json.dump(connections, file, indent=2)
 
-    print("\nPaired points saved to paired_points.yaml")
+    print(f"\nPaired points saved to {json_path}")
 
 
 if __name__ == "__main__":

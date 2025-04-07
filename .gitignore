@@ -3,3 +3,6 @@ __pycache__/
 
 # all yaml files
 *.yaml
+
+# all json files
+*.json

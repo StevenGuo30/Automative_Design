@@ -7,15 +7,25 @@ All units are in centimeters.
 import traceback
 import adsk.core
 import adsk.fusion
-import yaml
+import json
 import os
 import sys
 
-script_dir = os.path.dirname(os.path.abspath(__file__))  # script directory
-sys.path.append("../../fusion_api_example")
-yaml_path = os.path.join(script_dir, "paired_points.yaml")
+
+# get the path of the current script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+# get the path of the the upper of the upper directory
+# (the project root directory)
+project_root = os.path.abspath(os.path.join(script_dir, "..", ".."))
+
+# add the project root directory to sys.path
+if project_root not in sys.path:
+    sys.path.append(project_root)
 
 from Generate_path import generate_pipe_paths
+
+json_path = os.path.join(script_dir, "paired_points.json") # Path to the JSON file
 
 
 def create_custom_plane(rootComp, point1, point2, point3=(-0.05,-0.04,-0.03)): # default point3; so that the function can be called with only 2 points
@@ -141,23 +151,30 @@ def create_pipe(feats, path, outDiameter, wallThickness):
     pipeFeature = pipeFeatures.add(pipeInput)
     return pipeFeature
 
+
 def read_points():
-        with open(yaml_path, "r") as f:
-            data = yaml.safe_load(f)
-        point_dict = {}
-        group_connections = []
-        group = []
-        for group in data:
-            for point in group:
-                point_dict[point["name"]] = [point["coordinates"]["x"], point["coordinates"]["y"], point["coordinates"]["z"]]
-                group.append(point["name"])
-            group_connections.append(group)
-        return point_dict, group_connections
+    with open(json_path, "r") as f:
+        data = json.load(f)
+
+    point_dict = {}          # point name and coordinates
+    group_connections = []   # group name and point names
+
+    for group in data:
+        group_names = []
+        for point in group:
+            name = point["name"]
+            coords = point["coordinates"]
+            point_dict[name] = [coords["x"], coords["y"], coords["z"]]
+            group_names.append(name)
+        group_connections.append(group_names)
+
+    return point_dict, group_connections
 
 def run(context):
     """
     Main entry point to create two pipes with defined endpoints and custom plane.
     """
+    print("run() function is entered.") # Debugging line
     ui = None
     try:
         app = adsk.core.Application.get()
