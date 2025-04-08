@@ -1,6 +1,9 @@
-
 import numpy as np
 from scipy.spatial import cKDTree
+import trimesh
+from shapely.geometry import Point
+from trimesh.collision import CollisionManager
+
 
 def resample_curve(curve, ds):
     lengths = np.linalg.norm(np.diff(curve, axis=0), axis=1)
@@ -34,3 +37,59 @@ def is_self_collision(curve, pipe_radius, sample_ds=0.05):
             if abs(i - j) > 2:
                 return True
     return False
+
+
+def generate_swept_pipe(curve, radius=1.0, sections=32, engine='triangle'):
+    """
+    Generate a swept solid mesh by sweeping a circular polygon along a 3D path.
+
+    Parameters:
+    - curve (ndarray): Nx3 numpy array representing the sweep path.
+    - radius (float): Radius of the circular cross-section.
+    - sections (int): Number of segments for the circular approximation.
+    - engine (str): Triangulation engine to use ('triangle', 'earcut', etc.)
+
+    Returns:
+    - trimesh.Trimesh: Swept pipe mesh.
+    """
+    # Use shapely to create a 2D circular cross-section
+    circle_polygon = Point(0, 0).buffer(radius, resolution=sections)  # shapely.geometry.Polygon
+
+    # Use trimesh to sweep along the curve
+    swept = trimesh.creation.sweep_polygon(circle_polygon, curve, engine=engine)
+
+    return swept
+
+def is_self_intersecting(mesh):
+    # 创建碰撞管理器并添加网格
+    manager = CollisionManager()
+    manager.add_object('mesh', mesh)
+
+    # 检查网格与自身的碰撞
+    return manager.in_collision_internal()
+
+def is_self_collision_by_sweep(swept_mesh):
+    try:
+        return is_self_intersecting(swept_mesh)
+    except Exception as e:
+        print(f"  [Swept Collision Check Error] {e}")
+        return True
+    
+
+def is_curve_collision_by_sweep(swept_mesh1, swept_mesh2):
+    try:
+        # 创建碰撞管理器
+        manager1 = CollisionManager()
+        manager2 = CollisionManager()
+        
+        # 将第一个网格添加到第一个管理器
+        manager1.add_object('mesh1', swept_mesh1)
+        # 将第二个网格添加到第二个管理器
+        manager2.add_object('mesh2', swept_mesh2)
+        
+        # 检查两个管理器中的对象是否发生碰撞
+        collision = manager1.in_collision_other(manager2)
+        return collision
+    except Exception as e:
+        print(f"  [Swept Pair Collision Error] {e}")
+        return True

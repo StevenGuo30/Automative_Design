@@ -200,7 +200,7 @@ def run(context):
 
         for idx, spline_pts in enumerate(all_spline_data):
             path = create_spline_path(rootComp, spline_pts)
-            create_pipe(feats, path, isHollow=False, outDiameter=outDiameter)
+            create_pipe(feats, path, isHollow=True, outDiameter=0.2, wallThickness=0.05) # create a pipe with outer diameter 0.2 cm and wall thickness 0.05 cm
 
         ui.messageBox("All splines converted to pipes successfully!")
 
