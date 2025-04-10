@@ -9,6 +9,9 @@ from visualization import visualize_pipe_animation
 from input_interface import input_interface
 from scipy.spatial import cKDTree
 
+# TODO: Using shortest path for RTT Tree; And also make path smoother
+# TODO: Find out why the pipe radius cannot be bigger(Using some corner cases to test it)
+
 def save_splines_to_json(spline_list, output_path, num_sample_points=300):
     serialized = []
     for spline in spline_list:
