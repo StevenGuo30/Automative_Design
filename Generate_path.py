@@ -253,8 +253,6 @@ def global_smooth_and_check(curve_segments, obstacle_points, pipe_radius=0.2, nu
     else:
         return smooth_curve, True
 
-
-
 # ---------------- Generate Pipe Paths ----------------
 def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, max_retries, max_insertions):
     base_points = {name: np.array(coord) for name, coord in point_dict.items()}
@@ -268,107 +266,79 @@ def generate_pipe_paths(point_dict, group_connections, pipe_radius, sample_ds, m
 
         success = False
 
-        # --------------- Phase 1: Direct arc/interpolation with retry ---------------
-        for attempt in range(max_retries):
-            try:
-                if len(group_points) == 2:
-                    curve, _ = generate_arc_3d(group_points[0], group_points[1], arc_height_ratio, num_points)
-                else:
-                    curve = interpolate_curve(group_points, arc_height_ratio, num_points)
+        # --------------- Phase 1: RRT-based path planning with smoothing ---------------
+        print(f" Random seed retries failed for Group {group_idx+1}, trying segmented RRT + global smoothing...")
 
-                collision = False
+        if all_success_curves:
+            obstacle_points = np.vstack(all_success_curves)
+        else:
+            obstacle_points = np.empty((0, 3))
 
-                # Check collision with existing curves
-                for existing_curve in all_success_curves:
-                    if is_pipe_collision(curve, existing_curve, pipe_radius, sample_ds):
-                        collision = True
-                        break
+        all_points = np.vstack(list(base_points.values()))
+        margin = 0.5
+        x_min, y_min, z_min = all_points.min(axis=0) - margin
+        x_max, y_max, z_max = all_points.max(axis=0) + margin
+        x_limits = (x_min, x_max)
+        y_limits = (y_min, y_max)
+        z_limits = (z_min, z_max)
 
-                # Check self-intersection
-                if not collision and is_self_collision(curve, pipe_radius, sample_ds):
-                    print(f"  Self-collision detected in group {group_idx+1} attempt {attempt+1}")
-                    collision = True
+        curve_segments = []
 
-                if not collision:
-                    print(f"Group {group_idx+1} succeeded in {attempt+1} tries (no collision)!")
-                    all_success_curves.append(curve)
-                    frames.append(curve.copy())
-                    success = True
-                    break
+        for i in range(len(group_points) - 1):
+            start = group_points[i]
+            goal = group_points[i + 1]
 
-            except Exception as e:
-                print(f"Error in attempt {attempt+1}: {e}")
+            rrt_result = rrt_path(
+                start=start,
+                goal=goal,
+                obstacle_points=obstacle_points,
+                x_limits=x_limits,
+                y_limits=y_limits,
+                z_limits=z_limits,
+                max_iters=1500,
+                step_size=0.5,
+                goal_sample_rate=0.2,
+                safe_radius=pipe_radius
+            )
 
-        # --------------- Phase 2: RRT-based path planning with smoothing ---------------
-        if not success:
-            print(f" Random seed retries failed for Group {group_idx+1}, trying segmented RRT + global smoothing...")
+            if rrt_result is None:
+                print(f" RRT failed between point {i} and {i+1}, giving up this group.")
+                break
 
-            if all_success_curves:
-                obstacle_points = np.vstack(all_success_curves)
+            smoothed_segment = smooth_path_with_bspline(rrt_result, num_points=100)
+
+            if is_path_collision(smoothed_segment, cKDTree(obstacle_points), safe_radius=pipe_radius):
+                print(f" Smoothed segment between {i} and {i+1} collides, giving up this group.")
+                break
+
+            if i > 0:
+                smoothed_segment = smoothed_segment[1:]
+
+            curve_segments.append(smoothed_segment)
+
+        else:
+            full_curve = np.vstack(curve_segments)
+            globally_smoothed_curve = smooth_path_with_bspline(full_curve, num_points=300)
+
+            if is_path_collision(globally_smoothed_curve, cKDTree(obstacle_points), safe_radius=pipe_radius):
+                print(f" Global smoothed curve collides with existing pipes, group {group_idx+1} failed.")
+            elif is_self_collision(globally_smoothed_curve, pipe_radius, sample_ds):
+                print(f" Self-collision in smoothed curve, group {group_idx+1} failed.")
             else:
-                obstacle_points = np.empty((0, 3))
+                all_success_curves.append(globally_smoothed_curve)
+                frames.append(globally_smoothed_curve.copy())
+                print(f" Group {group_idx+1} succeeded with segmented RRT and global smoothing!")
+                success = True
 
-            all_points = np.vstack(list(base_points.values()))
-            margin = 0.5
-            x_min, y_min, z_min = all_points.min(axis=0) - margin
-            x_max, y_max, z_max = all_points.max(axis=0) + margin
-            x_limits = (x_min, x_max)
-            y_limits = (y_min, y_max)
-            z_limits = (z_min, z_max)
-
-            curve_segments = []
-
-            for i in range(len(group_points) - 1):
-                start = group_points[i]
-                goal = group_points[i + 1]
-
-                rrt_result = rrt_path(
-                    start=start,
-                    goal=goal,
-                    obstacle_points=obstacle_points,
-                    x_limits=x_limits,
-                    y_limits=y_limits,
-                    z_limits=z_limits,
-                    max_iters=1500,
-                    step_size=0.5,
-                    goal_sample_rate=0.2,
-                    safe_radius=pipe_radius
-                )
-
-                if rrt_result is None:
-                    print(f" RRT failed between point {i} and {i+1}, giving up this group.")
-                    break
-
-                smoothed_segment = smooth_path_with_bspline(rrt_result, num_points=100)
-
-                if is_path_collision(smoothed_segment, cKDTree(obstacle_points), safe_radius=pipe_radius):
-                    print(f" Smoothed segment between {i} and {i+1} collides, giving up this group.")
-                    break
-
-                if i > 0:
-                    smoothed_segment = smoothed_segment[1:]
-
-                curve_segments.append(smoothed_segment)
-
-            else:
-                full_curve = np.vstack(curve_segments)
-                globally_smoothed_curve = smooth_path_with_bspline(full_curve, num_points=300)
-
-                if is_path_collision(globally_smoothed_curve, cKDTree(obstacle_points), safe_radius=pipe_radius):
-                    print(f" Global smoothed curve collides with existing pipes, group {group_idx+1} failed.")
-                elif is_self_collision(globally_smoothed_curve, pipe_radius, sample_ds):
-                    print(f" Self-collision in smoothed curve, group {group_idx+1} failed.")
-                else:
-                    all_success_curves.append(globally_smoothed_curve)
-                    frames.append(globally_smoothed_curve.copy())
-                    print(f" Group {group_idx+1} succeeded with segmented RRT and global smoothing!")
-                    success = True
-
-        # --------------- Phase 3: Give up this group ---------------
+        # --------------- Phase 2: Give up this group ---------------
         if not success:
             print(f" Group {group_idx+1} failed after all retries and insertions.")
 
     return frames, all_success_curves
+
+
+
+
 
 
 
