@@ -1,0 +1,8 @@
+numpy
+scipy
+matplotlib
+pytest
+trimesh
+shapely
+triangle
+python-fcl
