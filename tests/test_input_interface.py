@@ -44,6 +44,24 @@ from input_interface import input_interface
         ],
         2,
         f"{target_dir}/paired_points.json"
+    ),
+    (
+        [
+            # Point 0: air input (not linkage)
+            "0,0,0", "0,0,1", "false","no",
+
+            # Point 1 & 2: linkage pair on Z-plane, 1.7912 apart in Z
+            "10,10,0", "1,0,0", "true","no",
+
+            # Point 3 & 4: linkage pair on Y-plane
+            "20,1.7912,10", "0,0,1", "true","yes",
+
+            # Group connections: air inputs connect to 4 linkage points each
+            "2,3",
+            "0.075"
+        ],
+        1,
+        f"{target_dir}/paired_points.json"
     )
 ])
 

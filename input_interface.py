@@ -16,18 +16,43 @@ def name_generator():
         yield letter if suffix == 0 else f"{letter}_{suffix}"
         count += 1
 
+def build_obb(p):
+    LENGTH = 2.1845 - 0.001
+    WIDTH = HEIGHT = 1.7912 - 0.001
+
+    c = np.array(list(p["coordinates"].values()))
+    d = np.array(list(p["directions"].values()))
+    d = d / np.linalg.norm(d)
+
+    # Build OBB axes
+    v = np.array([1, 0, 0]) if abs(d[0]) < 0.9 else np.array([0, 1, 0])
+    side = np.cross(d, v)
+    side /= np.linalg.norm(side)
+    up = np.cross(d, side)
+    axes = (d, side, up)
+
+    # Adjust center to center of box
+    c = c + (HEIGHT / 2) * axes[2]
+
+    # Generate corners
+    l, w, h = LENGTH / 2, WIDTH / 2, HEIGHT / 2
+    corners = []
+    for dx in [-l, l]:
+        for dy in [-w, w]:
+            for dz in [-h, h]:
+                corner = c + dx * axes[0] + dy * axes[1] + dz * axes[2]
+                corners.append(corner)
+
+    return {"name": p["name"], "corners": np.array(corners), "center": c}
+
+
 def linkage_boxes_intersect(p1, p2):
-    """
-    Check if two linkage units (as oriented boxes) would interfere in space.
-    Approximates each linkage as an OBB (oriented bounding box).
-    The boxes are defined by their center coordinates(points are at the bottom of the box) and direction vectors(define the long side).
-    """
-    LENGTH = 2.1845-0.001
-    WIDTH = HEIGHT = 1.7912-0.001
-
-    c1 = np.array(list(p1["coordinates"].values()))
-    c2 = np.array(list(p2["coordinates"].values()))
-
+    obb1 = build_obb(p1)
+    obb2 = build_obb(p2)
+    corners1 = obb1["corners"]
+    corners2 = obb2["corners"]
+    
+    # Build axes from p1, p2 directions
     d1 = np.array(list(p1["directions"].values()))
     d2 = np.array(list(p2["directions"].values()))
     d1 = d1 / np.linalg.norm(d1)
@@ -40,22 +65,8 @@ def linkage_boxes_intersect(p1, p2):
         up = np.cross(d, side)
         return d, side, up
 
-    def get_corners(center, axes):
-        l, w, h = LENGTH / 2, WIDTH / 2, HEIGHT / 2
-        corners = []
-        for dx in [-l, l]:
-            for dy in [-w, w]:
-                for dz in [-h, h]:
-                    corner = center + dx * axes[0] + dy * axes[1] + dz * axes[2]
-                    corners.append(corner)
-        return np.array(corners)
-
     axes1 = get_obb_axes(d1)
     axes2 = get_obb_axes(d2)
-    c1 = c1 + (HEIGHT / 2) * axes1[2]  # Here we change the center of the box to the bottom
-    corners1 = get_corners(c1, axes1) 
-    c2 = c2 + (HEIGHT / 2) * axes2[2]  # Here we change the center of the box to the bottom
-    corners2 = get_corners(c2, axes2)
 
     def sat_test(axes):
         for axis in axes:
@@ -64,11 +75,11 @@ def linkage_boxes_intersect(p1, p2):
             proj2 = [np.dot(c, axis) for c in corners2]
             if max(proj1) < min(proj2) or max(proj2) < min(proj1):
                 return False  # Separated
-        return True  # No separating axis → intersect
+        return True
 
-    # Combine all test axes
     test_axes = list(axes1 + axes2)
     return sat_test(test_axes)
+
 
 
 def check_compliance(points):
@@ -96,6 +107,8 @@ def get_point_input(name):
         "is_linkage": is_linkage,
     }
 
+def get_all_obbs(points):
+    return [build_obb(p) for p in points if p.get("is_linkage", True)]
 
 def get_float_vector(prompt, length):
     while True:

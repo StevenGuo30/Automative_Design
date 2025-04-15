@@ -4,19 +4,14 @@ import numpy as np
 
 from path_generation import interpolate_path
 from collision import (
-    is_pipe_collision,
-    is_self_collision,
     is_self_collision_by_sweep,
     is_curve_collision_by_sweep,
     generate_swept_pipe,
 )
-from rrt_planner import rrt_path, smooth_path_with_bspline, is_path_collision
+from rrt_planner import rrt_path, smooth_path_with_bspline,obb_list_to_pointcloud
 from visualization import visualize_pipe_animation
-from input_interface import input_interface
+from input_interface import input_interface, get_all_obbs
 from scipy.spatial import cKDTree
-
-# TODO: Using shortest path for RTT Tree; And also make path smoother
-# TODO: Find out why the pipe radius cannot be bigger(Using some corner cases to test it)
 
 
 def save_splines_to_json(spline_list, output_path, num_sample_points=300):
@@ -39,28 +34,29 @@ def save_splines_to_json(spline_list, output_path, num_sample_points=300):
 def generate_pipe_paths(
     point_dict,
     group_connections,
-    arc_height_ratio,
-    num_points,
     pipe_radius,
-    sample_ds,
-    max_retries=10,
+    obb_list=None,
 ):
     base_points = {name: np.array(coord) for name, coord in point_dict.items()}
     frames = []
     all_success_pipes = []
+    failed_segments = []
 
     for group_idx, group in enumerate(group_connections):
-        print(f"\nProcessing group {group_idx+1}: {group}")
+        print(f"\n[Generate_path]Processing group {group_idx+1}: {group}")
         group_points = [base_points[name] for name in group]
         success = False
 
-        print(f"Generating RRT path for group {group_idx+1}...")
+        print(f"[Generate_path]Generating RRT path for group {group_idx+1}...")
 
-        obstacle_points = (
+        pipe_cloud = (
             np.vstack([p["curve"] for p in all_success_pipes])
             if all_success_pipes
             else np.empty((0, 3))
         )
+        obb_cloud = obb_list_to_pointcloud(obb_list) if obb_list else np.empty((0, 3))
+        obstacle_points = np.vstack([pipe_cloud, obb_cloud])
+
         all_points = np.vstack(list(base_points.values()))
         margin = 0.5
         x_limits = (all_points[:, 0].min() - margin, all_points[:, 0].max() + margin)
@@ -80,56 +76,57 @@ def generate_pipe_paths(
                 x_limits=x_limits,
                 y_limits=y_limits,
                 z_limits=z_limits,
-                max_iters=2000,
-                step_size=0.3,
-                goal_sample_rate=0.3,
-                safe_radius=pipe_radius,
+                max_iters=3000,
+                step_size=0.5,
+                goal_sample_rate=0.2,
+                safe_radius=pipe_radius*1.2,
+                pipe_radius=pipe_radius,
+                obb_list=obb_list,
             )
 
             if rrt_result is None:
-                print(f"  RRT failed between point {i} and {i+1}, aborting group.")
+                print(f"[Generate_path]For Group {group_idx+1},RRT failed between point {i} and {i+1}, aborting group.")
                 break
 
-            smoothed_segment = smooth_path_with_bspline(rrt_result, num_points=3000)
-
+            rough_curve = smooth_path_with_bspline(rrt_result, num_points=1000)  # roughly smoothed
+            smoothed_segment = smooth_path_with_bspline(rough_curve, num_points=3000)
             swept = generate_swept_pipe(smoothed_segment, pipe_radius)
-            if is_self_collision_by_sweep(swept):
-                print(
-                    f"  Smoothed segment between {i} and {i+1} collides, aborting group."
-                )
+
+            if is_self_collision_by_sweep(swept, obb_list=obb_list, entry_points=[start, goal]):
+                print(f"[Generate_path]Smoothed segment between {i} and {i+1} collides, aborting group.")
+                failed_segments.append(smoothed_segment)
                 break
 
-            if i > 0:
+            if i > 0: # Remove the first point of segment so it doesn't overlap with the last point of the previou segment
                 smoothed_segment = smoothed_segment[1:]
 
             curve_segments.append(smoothed_segment)
 
         else:
+            print(f"[Generate_path]Group {group_idx+1} RRT path generation succeeded.")
             full_curve = np.vstack(curve_segments)
-            globally_smoothed_curve = smooth_path_with_bspline(
-                full_curve, num_points=300
-            )
+            globally_smoothed_curve = smooth_path_with_bspline(full_curve, num_points=300)
             swept = generate_swept_pipe(globally_smoothed_curve, pipe_radius)
 
-            if is_self_collision_by_sweep(swept):
-                print(f"  Global smoothed curve has self-collision.")
+            if is_self_collision_by_sweep(swept, obb_list=obb_list, entry_points=[group_points[0], group_points[-1]]):
+                print(f"[Generate_path]Group {group_idx+1} global smoothed curve has self-collision or OBB collision.")
+                failed_segments.append(globally_smoothed_curve)
             elif any(
-                is_curve_collision_by_sweep(swept, pipe["swept"])
+                is_curve_collision_by_sweep(swept, pipe["swept"], obb_list=obb_list)
                 for pipe in all_success_pipes
             ):
-                print(f"  Global smoothed curve collides with others.")
+                print(f"[Generate_path]Group {group_idx+1} global smoothed curve collides with others or OBB.")
+                failed_segments.append(globally_smoothed_curve)
             else:
-                all_success_pipes.append(
-                    {"curve": globally_smoothed_curve, "swept": swept}
-                )
+                all_success_pipes.append({"curve": globally_smoothed_curve, "swept": swept})
                 frames.append(globally_smoothed_curve.copy())
-                print(f"Group {group_idx+1} succeeded with RRT.")
+                print(f"[Generate_path]Group {group_idx+1} succeeded with RRT.")
                 success = True
 
         if not success:
-            print(f"Group {group_idx+1} failed after RRT path generation.")
+            print(f"[Generate_path]Group {group_idx+1} failed after RRT path generation.")
 
-    return frames, [pipe["curve"] for pipe in all_success_pipes]
+    return frames, [pipe["curve"] for pipe in all_success_pipes], failed_segments
 
 
 if __name__ == "__main__":
@@ -151,24 +148,20 @@ if __name__ == "__main__":
                 point_dict[name] = [coords["x"], coords["y"], coords["z"]]
                 names.append(name)
             group_connections.append(names)
+        all_points = [pt for group in data for pt in group]
+        obb_list = get_all_obbs(all_points)
         print(f"Loaded {len(data)} groups of points from {json_path}")
     else:
         print(f"{json_path} not found, generating points with input interface...")
-        point_dict, group_connections = (
-            input_interface()
-        )  # in input_interface function json file will be generated
+        point_dict, group_connections = input_interface()
+        obb_list = get_all_obbs(list(point_dict.values()))
 
-    arc_height_ratio = 0.22
-    num_points = 50
-    sample_ds = 0.005
 
-    frames, curves = generate_pipe_paths(
+    frames, curves, failed_segments = generate_pipe_paths(
         point_dict,
         group_connections,
-        arc_height_ratio,
-        num_points,
         pipe_radius,
-        sample_ds,
+        obb_list=obb_list
     )
 
     save_path = os.path.join(script_dir, "exported_splines.json")
@@ -176,4 +169,6 @@ if __name__ == "__main__":
     print(f"Saved {len(curves)} curves to {save_path}")
 
     points = [point_dict[name] for group in group_connections for name in group]
-    visualize_pipe_animation(frames, points=points)
+    visualize_pipe_animation(frames, points=points, obb_list=obb_list, failed_segments=failed_segments)
+
+
