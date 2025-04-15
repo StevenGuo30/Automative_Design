@@ -1,0 +1,149 @@
+{
+  "pipe_radius": 0.15,
+  "connections": [
+    [
+      {
+        "name": "A",
+        "coordinates": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "is_linkage": false
+      },
+      {
+        "name": "B",
+        "coordinates": {
+          "x": 10.0,
+          "y": 10.0,
+          "z": 0.0
+        },
+        "directions": {
+          "x": 1.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "D",
+        "coordinates": {
+          "x": 20.0,
+          "y": 0.0,
+          "z": 10.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "F",
+        "coordinates": {
+          "x": 0.0,
+          "y": 20.0,
+          "z": 20.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "H",
+        "coordinates": {
+          "x": 30.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": -1.0,
+          "z": 0.0
+        },
+        "is_linkage": true
+      }
+    ],
+    [
+      {
+        "name": "C",
+        "coordinates": {
+          "x": 10.0,
+          "y": 10.0,
+          "z": 1.7912
+        },
+        "directions": {
+          "x": 1.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "E",
+        "coordinates": {
+          "x": 20.0,
+          "y": 1.7912,
+          "z": 10.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "G",
+        "coordinates": {
+          "x": 1.7912,
+          "y": 20.0,
+          "z": 20.0
+        },
+        "directions": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 1.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "I",
+        "coordinates": {
+          "x": 30.0,
+          "y": 0.0,
+          "z": 1.7912
+        },
+        "directions": {
+          "x": 0.0,
+          "y": -1.0,
+          "z": 0.0
+        },
+        "is_linkage": true
+      },
+      {
+        "name": "J",
+        "coordinates": {
+          "x": 50.0,
+          "y": 50.0,
+          "z": 50.0
+        },
+        "directions": {
+          "x": -1.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "is_linkage": false
+      }
+    ]
+  ]
+}

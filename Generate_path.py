@@ -76,8 +76,8 @@ def generate_pipe_paths(
                 x_limits=x_limits,
                 y_limits=y_limits,
                 z_limits=z_limits,
-                max_iters=3000,
-                step_size=0.5,
+                max_iters=5000,
+                step_size=0.7,
                 goal_sample_rate=0.2,
                 safe_radius=pipe_radius*1.2,
                 pipe_radius=pipe_radius,
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     save_splines_to_json(curves, save_path, num_sample_points=300)
     print(f"Saved {len(curves)} curves to {save_path}")
 
-    points = [point_dict[name] for group in group_connections for name in group]
-    visualize_pipe_animation(frames, points=points, obb_list=obb_list, failed_segments=failed_segments)
+    # points = [point_dict[name] for group in group_connections for name in group]
+    visualize_pipe_animation(frames, point_dict=point_dict,group_connections=group_connections, obb_list=obb_list, failed_segments=failed_segments)
 
 

@@ -3,7 +3,7 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 
-def visualize_pipe_animation(frames, points=None, obb_list=None, failed_segments=None):
+def visualize_pipe_animation(frames,point_dict=None, group_connections=None, obb_list=None, failed_segments=None):
     """
     Visualize pipe path animation with optional OBBs and failed segments.
 
@@ -48,13 +48,22 @@ def visualize_pipe_animation(frames, points=None, obb_list=None, failed_segments
             for i, seg in enumerate(failed_segments):
                 ax.plot(seg[:, 0], seg[:, 1], seg[:, 2],
                         'k--', linewidth=1, label='Failed Segment' if i == 0 else None)
+        cnt = 0
+        # group_points = [point_dict[name] for group in group_connections for name in group]
 
-        if points is not None:
-            pts = np.array(points)
-            ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2],
-                       c='red', s=50, marker='o', label='Input Points')
-            for i, (x, y, z) in enumerate(pts):
-                ax.text(x, y, z, f'{i}', fontsize=10, color='black')
+        for group in group_connections:
+                pts = np.array([point_dict[name] for name in group])
+                if cnt == 0:
+                    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2],
+                            c='red', s=50, marker='o', label='Input Points')
+                    for i, (x, y, z) in enumerate(pts):
+                        ax.text(x, y, z, f'{i}', fontsize=10, color='black')
+                elif cnt == 1:
+                    ax.scatter(pts[:, 0], pts[:, 1], pts[:, 2],
+                            c='orange', s=50, marker='o', label='Input Points')
+                    for i, (x, y, z) in enumerate(pts):
+                        ax.text(x, y, z, f'{i}', fontsize=10, color='black')
+                cnt += 1
 
         if obb_list:
             for obb in obb_list:

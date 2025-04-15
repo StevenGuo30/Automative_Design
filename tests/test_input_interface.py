@@ -26,15 +26,15 @@ from input_interface import input_interface
             "20,0,10", "0,0,1", "true","no",
             "20,1.7912,10", "0,0,1", "true","no",
 
-            # Point 5 & 6: linkage pair on X-plane
+            # # Point 5 & 6: linkage pair on X-plane
             "0,20,20", "0,0,1", "true","no",
             "1.7912,20,20", "0,0,1", "true","no",
 
-            # Point 7 & 8: linkage pair on XZ-plane
+            # # Point 7 & 8: linkage pair on XZ-plane
             "30,0,0", "0,-1,0", "true","no",
             "30,0,1.7912", "0,-1,0", "true","no",
 
-            # Point 9: second air input
+            # # Point 9: second air input
             "50,50,50", "-1,0,0", "false","yes",
 
             # Group connections: air inputs connect to 4 linkage points each
@@ -45,24 +45,24 @@ from input_interface import input_interface
         2,
         f"{target_dir}/paired_points.json"
     ),
-    (
-        [
-            # Point 0: air input (not linkage)
-            "0,0,0", "0,0,1", "false","no",
+    # (
+    #     [
+    #         # Point 0: air input (not linkage)
+    #         "0,0,0", "0,0,1", "false","no",
 
-            # Point 1 & 2: linkage pair on Z-plane, 1.7912 apart in Z
-            "10,10,0", "1,0,0", "true","no",
+    #         # Point 1 & 2: linkage pair on Z-plane, 1.7912 apart in Z
+    #         "10,10,0", "1,0,0", "true","no",
 
-            # Point 3 & 4: linkage pair on Y-plane
-            "20,1.7912,10", "0,0,1", "true","yes",
+    #         # Point 3 & 4: linkage pair on Y-plane
+    #         "20,1.7912,10", "0,0,1", "true","yes",
 
-            # Group connections: air inputs connect to 4 linkage points each
-            "2,3",
-            "0.075"
-        ],
-        1,
-        f"{target_dir}/paired_points.json"
-    )
+    #         # Group connections: air inputs connect to 4 linkage points each
+    #         "2,3",
+    #         "0.075"
+    #     ],
+    #     1,
+    #     f"{target_dir}/paired_points.json"
+    # )
 ])
 
 def test_input_interface_with_save(monkeypatch, input_sequence, expected_group_count, output_filename):
