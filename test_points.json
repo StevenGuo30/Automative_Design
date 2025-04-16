@@ -1,149 +1,51 @@
 {
   "pipe_radius": 0.15,
-  "connections": [
-    [
-      {
-        "name": "A",
-        "coordinates": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 1.0
-        },
-        "is_linkage": false
-      },
-      {
-        "name": "B",
-        "coordinates": {
-          "x": 10.0,
-          "y": 10.0,
-          "z": 0.0
-        },
-        "directions": {
-          "x": 1.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "D",
-        "coordinates": {
-          "x": 20.0,
-          "y": 0.0,
-          "z": 10.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 1.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "F",
-        "coordinates": {
-          "x": 0.0,
-          "y": 20.0,
-          "z": 20.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 1.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "H",
-        "coordinates": {
-          "x": 30.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": -1.0,
-          "z": 0.0
-        },
-        "is_linkage": true
-      }
-    ],
-    [
-      {
-        "name": "C",
-        "coordinates": {
-          "x": 10.0,
-          "y": 10.0,
-          "z": 1.7912
-        },
-        "directions": {
-          "x": 1.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "E",
-        "coordinates": {
-          "x": 20.0,
-          "y": 1.7912,
-          "z": 10.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 1.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "G",
-        "coordinates": {
-          "x": 1.7912,
-          "y": 20.0,
-          "z": 20.0
-        },
-        "directions": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 1.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "I",
-        "coordinates": {
-          "x": 30.0,
-          "y": 0.0,
-          "z": 1.7912
-        },
-        "directions": {
-          "x": 0.0,
-          "y": -1.0,
-          "z": 0.0
-        },
-        "is_linkage": true
-      },
-      {
-        "name": "J",
-        "coordinates": {
-          "x": 50.0,
-          "y": 50.0,
-          "z": 50.0
-        },
-        "directions": {
-          "x": -1.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "is_linkage": false
-      }
-    ]
+  "pipe_radius_safety_factor": 1.25,
+  "inputs": ["A", "J"],
+  "nodes": {
+    "A": {
+      "coordinates": [0.0, 0.0, 0.0],
+      "direction": [0.0, 0.0, 1.0]
+    },
+    "B": {
+      "coordinates": [10.0, 10.0, 0.0],
+      "direction": [1.0, 0.0, 0.0]
+    },
+    "C": {
+      "coordinates": [10.0, 10.0, 1.7912],
+      "direction": [1.0, 0.0, 0.0]
+    },
+    "D": {
+      "coordinates": [20.0, 0.0, 10.0],
+      "direction": [0.0, 0.0, 1.0]
+    },
+    "E": {
+      "coordinates": [20.0, 1.7912, 10.0],
+      "direction": [0.0, 0.0, 1.0]
+    },
+    "F": {
+      "coordinates": [0.0, 20.0, 20.0],
+      "direction": [0.0, 0.0, 1.0]
+    },
+    "G": {
+      "coordinates": [1.7912, 20.0, 20.0],
+      "direction": [0.0, 0.0, 1.0]
+    },
+    "H": {
+      "coordinates": [30.0, 0.0, 0.0],
+      "direction": [0.0, -1.0, 0.0]
+    },
+    "I": {
+      "coordinates": [30.0, 0.0, 1.7912],
+      "direction": [0.0, -1.0, 0.0]
+    },
+    "J": {
+      "coordinates": [50.0, 50.0, 50.0],
+      "direction": [-1.0, 0.0, 0.0]
+    }
+  },
+  "groups": [
+    ["A", "B", "D", "F", "H"],
+    ["C", "E", "G", "I", "J"]
   ]
 }
