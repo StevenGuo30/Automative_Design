@@ -1,5 +1,6 @@
 {
   "pipe_radius": 0.50,
+  "pipe_radius_outer": 1.00,
   "pipe_radius_safety_factor": 1.25,
   "inputs": ["A", "J"],
   "nodes": {

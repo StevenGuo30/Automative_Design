@@ -260,8 +260,8 @@ def get_optimal_curve_avoiding_collision(
 
     res = minimize(
         objective,
-        x0=[0.0, 0.0, 0.0],
-        bounds=[(10.0, 1e2), (10.0, 1e2), (0.0, 1e1)],
+        x0=[1.5, 1.5, 0.0],
+        bounds=[(1e0, 1e2), (1e0, 1e2), (0.0, 1e1)],
         constraints=[
             NonlinearConstraint(constraint_penetration_count, -np.inf, 1e-2),  # zero
         ],
@@ -290,13 +290,22 @@ def get_optimal_curve_avoiding_collision(
     return new_curve, input_extent * direction_scale_input
 
 
-def find_bounding_box(points) -> BOX:
+def find_bounding_box(points, margin_ratio: float = 0.1) -> BOX:
     x = [point[0] for point in points]
     y = [point[1] for point in points]
     z = [point[2] for point in points]
     x_min, x_max = min(x), max(x)
     y_min, y_max = min(y), max(y)
     z_min, z_max = min(z), max(z)
+    xrange = x_max - x_min
+    yrange = y_max - y_min
+    zrange = z_max - z_min
+    x_min -= xrange * margin_ratio
+    x_max += xrange * margin_ratio
+    y_min -= yrange * margin_ratio
+    y_max += yrange * margin_ratio
+    z_min -= zrange * margin_ratio
+    z_max += zrange * margin_ratio
     return x_min, x_max, y_min, y_max, z_min, z_max
 
 
@@ -316,8 +325,11 @@ if __name__ == "__main__":
     # Problem definition
     with open(json_path, "r") as f:
         data = json.load(f)
-    pipe_radius: float = data["pipe_radius"] * data["pipe_radius_safety_factor"]
-    clearance: float = pipe_radius * 2.0  # Diameter
+    pipe_radius: float = data["pipe_radius"]
+    pipe_radius_outer: float = data["pipe_radius_outer"]
+    clearance: float = (
+        pipe_radius * data["pipe_radius_safety_factor"]
+    ) * 2.0  # Diameter
     nodes = data["nodes"]
     for node in nodes.values():
         node["coordinates"] = np.array(node["coordinates"])
@@ -428,6 +440,59 @@ if __name__ == "__main__":
         for cid, curve in enumerate(curve_group):
             is_in_box = is_geometry_in_box(curve, bbox)
             print(f"Curve {gidx}:{cid} is the bounding box - {is_in_box}")
+
+    # Create STL
+    import trimesh
+
+    sections = 64  # Number of sections for the tube (higher is smoother)
+
+    pipes = []
+    curves_flat = list(itertools.chain(*curves.values()))
+    for geom in lines + lines_extended + curves_flat:
+        points = geom.sample(int(geom.length() / 1))
+        # Create a circular polygon for the pipe cross-section
+        theta = np.linspace(0, 2 * np.pi, sections, endpoint=False)
+        circle_outer = np.column_stack(
+            [np.cos(theta) * pipe_radius_outer, np.sin(theta) * pipe_radius_outer]
+        )
+        circle_inner = np.column_stack(
+            [np.cos(theta) * pipe_radius, np.sin(theta) * pipe_radius]
+        )
+
+        # Create a ring polygon (outer circle with inner circle hole)
+        from shapely.geometry import Polygon
+
+        ring = Polygon(circle_outer, [circle_inner])
+
+        try:
+            # Create tube using sweep_polygon with banking disabled
+            # (keep cross-section oriented consistently)
+            pipe = trimesh.creation.sweep_polygon(polygon=ring, path=points)
+        except Exception as e:
+            logger.error(f"Error creating pipe with sweep_polygon: {e}")
+            continue
+        pipes.append(pipe)
+    if len(pipes) == 0:
+        logger.error("No pipes created")
+        sys.exit(1)
+    # Combine pipes
+    try:
+        combined_pipe = trimesh.boolean.union(pipes)
+    except Exception as e:
+        logger.error(f"Error combining pipes: {e}")
+        sys.exit(1)
+    mesh = combined_pipe
+    # bbox_extents = bbox[1] - bbox[0], bbox[3] - bbox[2], bbox[5] - bbox[4]
+    # bbox_center = (
+    #     (bbox[0] + bbox[1]) / 2,
+    #     (bbox[2] + bbox[3]) / 2,
+    #     (bbox[4] + bbox[5]) / 2,
+    # )
+    # bounding_box = trimesh.creation.box(extents=bbox_extents, center=bbox_center)
+    # mesh = combined_pipe.intersection(bounding_box)
+    output_filename = json_path.replace(".json", ".stl")
+    mesh.export(output_filename)
+    logger.info(f"Saved {output_filename}")
 
     sys.exit()
     frames, curves, failed_segments = generate_pipe_paths(
