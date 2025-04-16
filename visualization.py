@@ -158,7 +158,6 @@ def plot_problem(
 
     # Add labels
     for i, point_name in enumerate(group_names):
-        point: list[float] = points[i]
         ax.text(
             *points[i],
             point_name,
@@ -176,7 +175,9 @@ def plot_problem(
     return s.get_facecolor()
 
 
-def plot_lines(ax: Axes3D, lines: list, pipe_radius: float, color: str="gray") -> None:
+def plot_lines(
+    ax: Axes3D, lines: list, pipe_radius: float, color: str = "gray"
+) -> None:
     """
     Plot a list of line objects on the given 3D axes.
 

@@ -208,7 +208,7 @@ def get_optimal_curve_avoiding_collision(
     collision_lines: list[Line],
     collision_curves: dict[int, list[Curve]],
     bbox: BOX,  # TODO
-    pipe_radius: float,
+    clearance: float,
 ) -> tuple[Curve, float]:
     input_point = input_node["coordinates"]
     input_direction = input_node["direction"]
@@ -251,7 +251,7 @@ def get_optimal_curve_avoiding_collision(
         penetration_count = 0
         # Penetration against other lines and curves
         for geom in collision_lines + curves_flat:
-            if nearest_distance_between_geometry(curve, geom) < pipe_radius:
+            if nearest_distance_between_geometry(curve, geom) < clearance:
                 penetration_count += 1
         # Penetration against bounding box
         if is_geometry_in_box(curve, bbox):
@@ -317,6 +317,7 @@ if __name__ == "__main__":
     with open(json_path, "r") as f:
         data = json.load(f)
     pipe_radius: float = data["pipe_radius"] * data["pipe_radius_safety_factor"]
+    clearance: float = pipe_radius * 2.0  # Diameter
     nodes = data["nodes"]
     for node in nodes.values():
         node["coordinates"] = np.array(node["coordinates"])
@@ -367,7 +368,7 @@ if __name__ == "__main__":
         max_input_extent = 0.0
         for target_node in target_nodes:
             curve, input_extent = get_optimal_curve_avoiding_collision(
-                input_node, target_node, lines, curves, bbox, pipe_radius
+                input_node, target_node, lines, curves, bbox, clearance
             )
             max_input_extent = max(max_input_extent, input_extent)
             curves[gidx].append(curve)
@@ -420,6 +421,13 @@ if __name__ == "__main__":
                     print(
                         f"Distance between g{gidx_1}:{cid_1} and g{gidx_2}:{cid_2}: {distance}"
                     )
+
+    # Analyze if curve is in the bounding box
+    for gidx, group in enumerate(groups):
+        curve_group = curves[gidx]
+        for cid, curve in enumerate(curve_group):
+            is_in_box = is_geometry_in_box(curve, bbox)
+            print(f"Curve {gidx}:{cid} is the bounding box - {is_in_box}")
 
     sys.exit()
     frames, curves, failed_segments = generate_pipe_paths(
