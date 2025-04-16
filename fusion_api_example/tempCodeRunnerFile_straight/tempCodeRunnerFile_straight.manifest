@@ -1,0 +1,13 @@
+{
+	"autodeskProduct":	"Fusion",
+	"type":	"script",
+
+	"author":	"JiamiaoGuo",
+	"description":	{
+		"":	""
+	},
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true,
+	"iconFilename":	"autogenchannel.svg",
+	"entry":"tempCodeRunnerFile.py"
+}
