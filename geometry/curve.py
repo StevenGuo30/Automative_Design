@@ -18,7 +18,7 @@ class Curve:
         self.point_b = np.asarray(point_b, dtype=float)
         self.direction_a = np.asarray(direction_a, dtype=float) * direction_scale_input
         self.direction_b = (
-            -np.asarray(direction_b, dtype=float) * direction_scale_output
+            np.asarray(direction_b, dtype=float) * direction_scale_output
         )
 
         # Extension

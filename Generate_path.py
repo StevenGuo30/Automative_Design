@@ -208,6 +208,7 @@ def get_optimal_curve_avoiding_collision(
     collision_lines: list[Line],
     collision_curves: dict[int, list[Curve]],
     bbox: BOX,  # TODO
+    pipe_radius: float,
 ) -> tuple[Curve, float]:
     input_point = input_node["coordinates"]
     input_direction = input_node["direction"]
@@ -232,8 +233,8 @@ def get_optimal_curve_avoiding_collision(
         return (
             curve.energy()
             + 1e-2 * input_extent
-            + 5e-2 * direction_scale_input
-            + 5e-2 * direction_scale_output
+            + 1e-3 * direction_scale_input
+            + 1e-3 * direction_scale_output
         )
 
     def constraint_penetration_count(params: tuple[float, float, float]) -> float:
@@ -286,7 +287,7 @@ def get_optimal_curve_avoiding_collision(
     logger.info(f"{input_extent=}, {direction_scale_input=}, {direction_scale_output=}")
     logger.info(f"Energy = {curve_energy:.4f}, Length = {curve_length:.4f}")
 
-    return new_curve, input_extent
+    return new_curve, input_extent * direction_scale_input
 
 
 def find_bounding_box(points) -> BOX:
@@ -352,7 +353,10 @@ if __name__ == "__main__":
     # Create offset lines to avoid collision with initial block
     offset_points = {}
     for node_name, node in nodes.items():
-        offset_point = create_offset(node)
+        if node_name in inputs:
+            offset_point = create_offset(node, offset_mm=5.0)
+        else:
+            offset_point = create_offset(node, offset_mm=-5.0)
         lines.append(Line(node["coordinates"], offset_point["coordinates"]))
         offset_points[node_name] = offset_point
 
@@ -363,7 +367,7 @@ if __name__ == "__main__":
         max_input_extent = 0.0
         for target_node in target_nodes:
             curve, input_extent = get_optimal_curve_avoiding_collision(
-                input_node, target_node, lines, curves, bbox
+                input_node, target_node, lines, curves, bbox, pipe_radius
             )
             max_input_extent = max(max_input_extent, input_extent)
             curves[gidx].append(curve)
@@ -375,8 +379,6 @@ if __name__ == "__main__":
     # Draw solution
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
-    [print(l) for l in lines]
-    [print(l) for l in lines_extended]
     plot_lines(ax, lines, pipe_radius, color="black")
     plot_lines(ax, lines_extended, pipe_radius, color="red")
     for gidx, group in enumerate(groups):
@@ -397,14 +399,27 @@ if __name__ == "__main__":
             offset_points_array[:, 0],
             offset_points_array[:, 1],
             offset_points_array[:, 2],
-            color=color,
+            color="k",
             alpha=0.5,
         )
         plot_curves(ax, curve_group, f"group {gidx}", pipe_radius, color=color)
     ax_zoom_fit(ax, bbox)
     plt.tight_layout()
     plt.show()
-    breakpoint()
+
+    # Analyze closest distances between curves
+    for gidx_1, _ in enumerate(groups):
+        for gidx_2, _ in enumerate(groups):
+            if gidx_1 == gidx_2:
+                continue
+            curve_group_1 = curves[gidx_1]
+            curve_group_2 = curves[gidx_2]
+            for cid_1, curve_1 in enumerate(curve_group_1):
+                for cid_2, curve_2 in enumerate(curve_group_2):
+                    distance = nearest_distance_between_geometry(curve_1, curve_2)
+                    print(
+                        f"Distance between g{gidx_1}:{cid_1} and g{gidx_2}:{cid_2}: {distance}"
+                    )
 
     sys.exit()
     frames, curves, failed_segments = generate_pipe_paths(
