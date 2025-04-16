@@ -1,10 +1,15 @@
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol, TypeAlias, TypedDict
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 
 Point3D: TypeAlias = np.ndarray
 Point3Ds: TypeAlias = np.ndarray
 BOX: TypeAlias = tuple[float, float, float, float, float, float]
+
+
+class Node(TypedDict):
+    coordinates: Point3D
+    direction: Point3D
 
 
 class Simple1DGeometry(Protocol):

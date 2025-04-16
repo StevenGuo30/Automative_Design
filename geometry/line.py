@@ -9,6 +9,9 @@ class Line:
         self.end = end
         self._cached_samples: dict[int, Point3Ds] = {}
 
+    def __repr__(self):
+        return f"Line(start={self.start}, end={self.end})"
+
     def sample(self, discretization: int = 100) -> Point3Ds:
         if discretization in self._cached_samples:
             return self._cached_samples[discretization]
@@ -32,4 +35,5 @@ class Line:
             [self.start[1], self.end[1]],
             [self.start[2], self.end[2]],
             color=color,
+            linestyle="--",
         )

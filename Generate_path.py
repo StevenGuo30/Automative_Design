@@ -22,7 +22,7 @@ from visualization import (
 from input_interface import input_interface, get_all_obbs
 from scipy.spatial import cKDTree
 
-from geometry.protocol import Point3D, Point3Ds, BOX, Simple1DGeometry
+from geometry.protocol import Point3D, Point3Ds, BOX, Simple1DGeometry, Node
 from geometry import (
     Line,
     Curve,
@@ -177,12 +177,9 @@ def generate_pipe_paths(
 
 
 # ####### Changes: #######
-class Node(TypedDict):
-    coordinates: Point3D
-    direction: Point3D
 
 
-def create_offset(node: Node, offset_mm: float = 5.0) -> Point3D:
+def create_offset(node: Node, offset_mm: float = 5.0) -> Node:
     return {
         "coordinates": node["coordinates"] + offset_mm * node["direction"],
         "direction": node["direction"],
@@ -232,7 +229,12 @@ def get_optimal_curve_avoiding_collision(
             direction_scale_output,
             input_extent,
         )
-        return curve.energy() + 1e-2 * input_extent
+        return (
+            curve.energy()
+            + 1e-2 * input_extent
+            + 5e-2 * direction_scale_input
+            + 5e-2 * direction_scale_output
+        )
 
     def constraint_penetration_count(params: tuple[float, float, float]) -> float:
         direction_scale_input, direction_scale_output, input_extent = params
@@ -373,10 +375,15 @@ if __name__ == "__main__":
     # Draw solution
     fig = plt.figure(figsize=(10, 8))
     ax = fig.add_subplot(111, projection="3d")
+    [print(l) for l in lines]
+    [print(l) for l in lines_extended]
     plot_lines(ax, lines, pipe_radius, color="black")
     plot_lines(ax, lines_extended, pipe_radius, color="red")
     for gidx, group in enumerate(groups):
         points_array = np.array([nodes[name]["coordinates"] for name in group])
+        offset_points_array = np.array(
+            [offset_points[name]["coordinates"] for name in group]
+        )
         directions_array = np.array([nodes[name]["direction"] for name in group])
         curve_group = curves[gidx]
         color = plot_problem(
@@ -386,10 +393,18 @@ if __name__ == "__main__":
             group,
             f"group {gidx}",
         )
+        ax.scatter(
+            offset_points_array[:, 0],
+            offset_points_array[:, 1],
+            offset_points_array[:, 2],
+            color=color,
+            alpha=0.5,
+        )
         plot_curves(ax, curve_group, f"group {gidx}", pipe_radius, color=color)
     ax_zoom_fit(ax, bbox)
     plt.tight_layout()
     plt.show()
+    breakpoint()
 
     sys.exit()
     frames, curves, failed_segments = generate_pipe_paths(
