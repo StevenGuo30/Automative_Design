@@ -145,7 +145,7 @@ def plot_problem(
     )
 
     # Add director as arrow
-    quiver_scale = 10
+    quiver_scale = 0.5
     ax.quiver(
         points[:, 0],
         points[:, 1],

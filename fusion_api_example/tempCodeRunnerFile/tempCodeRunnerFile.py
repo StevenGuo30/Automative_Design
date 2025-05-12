@@ -24,8 +24,9 @@ if project_root not in sys.path:
     sys.path.append(project_root)
 
 
-
-def create_custom_plane(rootComp, point1, point2, point3=(-0.05,-0.04,-0.03)): # default point3; so that the function can be called with only 2 points
+def create_custom_plane(
+    rootComp, point1, point2, point3=(-0.05, -0.04, -0.03)
+):  # default point3; so that the function can be called with only 2 points
     """
     Creates a construction plane using three 3D points.
 
@@ -52,34 +53,34 @@ def create_custom_plane(rootComp, point1, point2, point3=(-0.05,-0.04,-0.03)): #
     return customPlane
 
 
-def global_to_local(global_point, sketch):
-    """
-    Converts a global 3D point to the local coordinate system of a sketch.
+# def global_to_local(global_point, sketch):
+#     """
+#     Converts a global 3D point to the local coordinate system of a sketch.
 
-    Parameters:
-    global_point (adsk.core.Point3D): The point in global coordinates.
-    sketch (adsk.fusion.Sketch): The sketch whose coordinate system to use.
+#     Parameters:
+#     global_point (adsk.core.Point3D): The point in global coordinates.
+#     sketch (adsk.fusion.Sketch): The sketch whose coordinate system to use.
 
-    Returns:
-    adsk.core.Point3D: The transformed point in sketch local coordinates.
-    """
-    parent_component = sketch.parentComponent
-    normal = sketch.referencePlane.geometry.normal
-    origin = sketch.referencePlane.geometry.origin
+#     Returns:
+#     adsk.core.Point3D: The transformed point in sketch local coordinates.
+#     """
+#     parent_component = sketch.parentComponent
+#     normal = sketch.referencePlane.geometry.normal
+#     origin = sketch.referencePlane.geometry.origin
 
-    x_direction = sketch.xDirection
-    y_direction = normal.crossProduct(x_direction)
+#     x_direction = sketch.xDirection
+#     y_direction = normal.crossProduct(x_direction)
 
-    transform = adsk.core.Matrix3D.create()
-    transform.setWithCoordinateSystem(origin, x_direction, y_direction, normal)
+#     transform = adsk.core.Matrix3D.create()
+#     transform.setWithCoordinateSystem(origin, x_direction, y_direction, normal)
 
-    inverse_transform = transform.copy()
-    inverse_transform.invert()
+#     inverse_transform = transform.copy()
+#     inverse_transform.invert()
 
-    local_point = global_point.copy()
-    local_point.transformBy(inverse_transform)
+#     local_point = global_point.copy()
+#     local_point.transformBy(inverse_transform)
 
-    return local_point
+#     return local_point
 
 
 def get_optimized_pipe(start, end):
@@ -103,9 +104,9 @@ def get_optimized_pipe(start, end):
     return points
 
 
-def create_pipe_path(rootComp, feats, start, end, sketch):
+def create_pipe_path(rootComp, feats, point_3d):
     """
-    Creates a spline-based pipe path on a given sketch.
+    Creates a line-based pipe path on a given sketch.
 
     Parameters:
     rootComp (adsk.fusion.Component): The root component.
@@ -117,15 +118,40 @@ def create_pipe_path(rootComp, feats, start, end, sketch):
     Returns:
     adsk.fusion.Path: The created pipe path.
     """
-    start_local = global_to_local(start, sketch)
-    end_local = global_to_local(end, sketch)
-    points = get_optimized_pipe(start_local, end_local)
-    spline = sketch.sketchCurves.sketchFittedSplines.add(points)
-    path = feats.createPath(spline)
+    n = len(point_3d)
+    lines = adsk.core.ObjectCollection.create()
+    sketches = rootComp.sketches
+    sketch = sketches.add(rootComp.xYConstructionPlane)
+    for idx in range(0, n - 1):
+        start = adsk.core.Point3D.create(*point_3d[idx])
+        end = adsk.core.Point3D.create(*point_3d[idx + 1])
+        line = sketch.sketchCurves.sketchLines.addByTwoPoints(start, end)
+        lines.add(line)
+    path = feats.createPath(lines)
+    assert path.isValid, "Path is not valid"
+    debug_print(f"{path.count} Paths created with {len(lines)} lines")
     return path
 
 
-def create_pipe(feats, path,isHollow = True, outDiameter = 0.8,  wallThickness=0.05):
+def create_spline_path(rootComp, points_3d):
+    """
+    Create a 3D sketch fitted spline from list of [x, y, z]
+    """
+    sketches = rootComp.sketches
+    sketch = sketches.add(rootComp.xYConstructionPlane)
+
+    point_collection = adsk.core.ObjectCollection.create()
+    for pt in points_3d:
+        point_collection.add(adsk.core.Point3D.create(*pt))
+
+    spline = sketch.sketchCurves.sketchFittedSplines.add(point_collection)
+    path = rootComp.features.createPath(spline)
+    assert path.isValid, "Path is not valid"
+    debug_print(f"{path.count} Paths created")
+    return path
+
+
+def create_pipe(feats, path, isHollow=True, outDiameter=0.8, wallThickness=0.05):
     """
     Creates a hollow pipe with the specified outer diameter and wall thickness.
 
@@ -138,6 +164,8 @@ def create_pipe(feats, path,isHollow = True, outDiameter = 0.8,  wallThickness=0
     Returns:
     adsk.fusion.PipeFeature: The created pipe feature object.
     """
+    if path.count == 0:
+        raise ValueError("Path is empty. Cannot create pipe.")
     pipeFeatures = feats.pipeFeatures
     pipeInput = pipeFeatures.createInput(
         path, adsk.fusion.FeatureOperations.NewBodyFeatureOperation
@@ -147,28 +175,43 @@ def create_pipe(feats, path,isHollow = True, outDiameter = 0.8,  wallThickness=0
         pipeInput.isHollow = isHollow
         pipeInput.wallThickness = adsk.core.ValueInput.createByReal(wallThickness)
     pipeFeature = pipeFeatures.add(pipeInput)
-    return pipeFeature
-
+    if path.count == 1:
+        return pipeFeature
+    else:
+        pipes = adsk.core.ObjectCollection.create()
+        pipes.add(pipeFeature)
+        for i in range(1, path.count):
+            pipeInput = pipeFeatures.createInput(
+                path.item(i), adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+            )
+            pipeInput.sectionSize = adsk.core.ValueInput.createByReal(outDiameter)
+            if isHollow:
+                pipeInput.isHollow = isHollow
+                pipeInput.wallThickness = adsk.core.ValueInput.createByReal(
+                    wallThickness
+                )
+            pipeFeature = pipeFeatures.add(pipeInput)
+            pipes.add(pipeFeature)
+        pipe_final = feats.combineFeatures
+        for i in range(1, len(pipes)):
+            combineInput = feats.combineFeatures.createInput(
+                pipes.item(i - 1), pipes.item(i)
+            )
+            combineInput.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+            combineInput.isKeepToolBodies = False
+            pipe_final.add(combineInput)
+        return pipe_final
 
 
 def read_json(json_path):
-    with open(json_path, 'r') as f:
+    with open(json_path, "r") as f:
         return json.load(f)
 
-def create_spline_path(rootComp, points_3d):
-    """
-    Create a 3D sketch fitted spline from list of [x, y, z]
-    """
-    sketches = rootComp.sketches
-    sketch = sketches.add(rootComp.xYConstructionPlane)  # 只是附着，不限制其在 XY 平面上
 
-    point_collection = adsk.core.ObjectCollection.create()
-    for pt in points_3d:
-        point_collection.add(adsk.core.Point3D.create(*pt))
-
-    spline = sketch.sketchCurves.sketchFittedSplines.add(point_collection)
-    path = rootComp.features.createPath(spline)
-    return path
+def debug_print(msg):
+    app = adsk.core.Application.get()
+    ui = app.userInterface
+    ui.palettes.itemById("TextCommands").writeText(str(msg))
 
 
 def run(context):
@@ -179,28 +222,44 @@ def run(context):
         design = app.activeProduct
         rootComp = design.rootComponent
         feats = rootComp.features
-        
-        print("Starting to create pipes process...")
 
-        json_path = os.path.join(project_root, "exported_splines.json") # Path to the JSON file
-        points_path = os.path.join(project_root, "paired_points.json") # Path to the paired points JSON file
+        debug_print("Starting to create pipes process...")
+
+        json_path = os.path.join(
+            project_root, "exported_splines.json"
+        )  # Path to the JSON file
+        points_path = os.path.join(
+            project_root, "paired_points.json"
+        )  # Path to the paired points JSON file
 
         if not os.path.exists(json_path):
             ui.messageBox(f"File not found: {json_path}")
             return
-        
+
         if not os.path.exists(points_path):
             ui.messageBox(f"File not found: {points_path}")
             return
 
         all_spline_data = read_json(json_path)
-        pipe_radius = read_json(points_path)["pipe_radius"] # get the pipe radius from paired_points.json
-        outDiameter = pipe_radius * 2 # outer diameter is twice the radius
-
+        debug_print(
+            f"Loaded {len(all_spline_data)} spline data points from {json_path}"
+        )
+        pipe_radius = read_json(points_path)[
+            "pipe_radius"
+        ]  # get the pipe radius from paired_points.json
+        outDiameter = pipe_radius * 2  # outer diameter is twice the radius
 
         for idx, spline_pts in enumerate(all_spline_data):
+            # print shape of spline_pts
+            debug_print(f"spline has {len(spline_pts)} points")
             path = create_spline_path(rootComp, spline_pts)
-            create_pipe(feats, path, isHollow=True, outDiameter=0.2, wallThickness=0.05) # create a pipe with outer diameter 0.2 cm and wall thickness 0.05 cm
+            # path = create_pipe_path(rootComp, feats, spline_pts)
+            create_pipe(
+                feats, path, isHollow=True, outDiameter=0.2, wallThickness=0.05
+            )  # create a pipe with outer diameter 0.2 cm and wall thickness 0.05 cms
+            debug_print(
+                f"Created pipe {idx + 1}/{len(all_spline_data)} with outer diameter {outDiameter} cm and wall thickness 0.05 cm"
+            )
 
         ui.messageBox("All splines converted to pipes successfully!")
 

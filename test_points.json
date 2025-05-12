@@ -2,51 +2,37 @@
   "pipe_radius": 0.50,
   "pipe_radius_outer": 1.00,
   "pipe_radius_safety_factor": 1.25,
-  "inputs": ["A", "J"],
+  "inputs": [
+    "E","F"
+  ],
   "nodes": {
     "A": {
       "coordinates": [0.0, 0.0, 0.0],
-      "direction": [0.0, 0.0, 1.0]
-    },
-    "B": {
-      "coordinates": [10.0, 10.0, 0.0],
-      "direction": [1.0, 0.0, 0.0]
+      "direction": [0.0, 0.0, -1.0]
     },
     "C": {
-      "coordinates": [10.0, 10.0, 1.7912],
-      "direction": [1.0, 0.0, 0.0]
-    },
-    "D": {
-      "coordinates": [20.0, 0.0, 10.0],
-      "direction": [0.0, 0.0, 1.0]
+      "coordinates": [0.0, 1.7912, 0.0],
+      "direction": [0.0, 0.0, -1.0]
     },
     "E": {
-      "coordinates": [20.0, 1.7912, 10.0],
-      "direction": [0.0, 0.0, 1.0]
+      "coordinates": [0.0, 2.69, 0.43],
+      "direction": [0.0, -1.0, 0.0]
+    },
+    "B": {
+      "coordinates": [1.7912, 0.9, 0.0],
+      "direction": [0.0, 0.0, -1.0]
+    },
+    "D": {
+      "coordinates": [-1.7912, 0.9, 0.0],
+      "direction": [0.0, 0.0, -1.0]
     },
     "F": {
-      "coordinates": [0.0, 20.0, 20.0],
-      "direction": [0.0, 0.0, 1.0]
-    },
-    "G": {
-      "coordinates": [1.7912, 20.0, 20.0],
-      "direction": [0.0, 0.0, 1.0]
-    },
-    "H": {
-      "coordinates": [30.0, 0.0, 0.0],
+      "coordinates": [0.0, 2.69, 0.87],
       "direction": [0.0, -1.0, 0.0]
-    },
-    "I": {
-      "coordinates": [30.0, 0.0, 1.7912],
-      "direction": [0.0, -1.0, 0.0]
-    },
-    "J": {
-      "coordinates": [50.0, 50.0, 50.0],
-      "direction": [-1.0, 0.0, 0.0]
     }
   },
   "groups": [
-    ["A", "B", "D", "F", "H"],
-    ["C", "E", "G", "I", "J"]
+    ["A", "C", "E"],
+    ["B", "D", "F"]
   ]
 }

@@ -34,22 +34,18 @@ logger = logging.getLogger(__name__)
 
 
 def save_splines_to_json(
-    spline_list: list[np.ndarray], output_path: str, num_sample_points: int = 300
+    curves: list[list["Curve"]], output_path: str, num_sample_points: int = 300
 ) -> None:
     serialized = []
-    for spline in spline_list:
-        t = np.linspace(0, 1, spline.shape[0])
-        t_sample = np.linspace(0, 1, num_sample_points)
-        resampled = np.vstack(
-            [
-                np.interp(t_sample, t, spline[:, 0]),
-                np.interp(t_sample, t, spline[:, 1]),
-                np.interp(t_sample, t, spline[:, 2]),
-            ]
-        ).T
-        serialized.append(resampled.tolist())
+    for group_idx in range(len(curves)):
+        # group_serialized = []
+        for curve in curves[group_idx]:
+            sampled_points = curve.sample(num_sample_points)
+            serialized.append(sampled_points.tolist())
+            
     with open(output_path, "w") as f:
         json.dump(serialized, f, indent=2)
+
 
 
 def generate_pipe_paths(
@@ -179,9 +175,9 @@ def generate_pipe_paths(
 # ####### Changes: #######
 
 
-def create_offset(node: Node, offset_mm: float = 5.0) -> Node:
+def create_offset(node: Node, offset_cm: float = 5.0) -> Node:
     return {
-        "coordinates": node["coordinates"] + offset_mm * node["direction"],
+        "coordinates": node["coordinates"] + offset_cm * node["direction"],
         "direction": node["direction"],
     }
 
@@ -367,9 +363,9 @@ if __name__ == "__main__":
     offset_points = {}
     for node_name, node in nodes.items():
         if node_name in inputs:
-            offset_point = create_offset(node, offset_mm=5.0)
+            offset_point = create_offset(node, offset_cm=0)
         else:
-            offset_point = create_offset(node, offset_mm=-5.0)
+            offset_point = create_offset(node, offset_cm=0)
         lines.append(Line(node["coordinates"], offset_point["coordinates"]))
         offset_points[node_name] = offset_point
 
@@ -390,7 +386,7 @@ if __name__ == "__main__":
         lines_extended.append(Line(input_node["coordinates"], line_extension))
 
     # Draw solution
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(12, 10))
     ax = fig.add_subplot(111, projection="3d")
     plot_lines(ax, lines, pipe_radius, color="black")
     plot_lines(ax, lines_extended, pipe_radius, color="red")
@@ -442,72 +438,72 @@ if __name__ == "__main__":
             print(f"Curve {gidx}:{cid} is the bounding box - {is_in_box}")
 
     # Create STL
-    import trimesh
+    # import trimesh
 
-    sections = 64  # Number of sections for the tube (higher is smoother)
+    # sections = 64  # Number of sections for the tube (higher is smoother)
 
-    pipes = []
-    curves_flat = list(itertools.chain(*curves.values()))
-    for geom in lines + lines_extended + curves_flat:
-        points = geom.sample(int(geom.length() / 1))
-        # Create a circular polygon for the pipe cross-section
-        theta = np.linspace(0, 2 * np.pi, sections, endpoint=False)
-        circle_outer = np.column_stack(
-            [np.cos(theta) * pipe_radius_outer, np.sin(theta) * pipe_radius_outer]
-        )
-        circle_inner = np.column_stack(
-            [np.cos(theta) * pipe_radius, np.sin(theta) * pipe_radius]
-        )
+    # pipes = []
+    # curves_flat = list(itertools.chain(*curves.values()))
+    # for geom in lines + lines_extended + curves_flat:
+    #     points = geom.sample(int(geom.length() / 1))
+    #     # Create a circular polygon for the pipe cross-section
+    #     theta = np.linspace(0, 2 * np.pi, sections, endpoint=False)
+    #     circle_outer = np.column_stack(
+    #         [np.cos(theta) * pipe_radius_outer, np.sin(theta) * pipe_radius_outer]
+    #     )
+    #     circle_inner = np.column_stack(
+    #         [np.cos(theta) * pipe_radius, np.sin(theta) * pipe_radius]
+    #     )
 
-        # Create a ring polygon (outer circle with inner circle hole)
-        from shapely.geometry import Polygon
+    #     # Create a ring polygon (outer circle with inner circle hole)
+    #     from shapely.geometry import Polygon
 
-        ring = Polygon(circle_outer, [circle_inner])
+    #     ring = Polygon(circle_outer, [circle_inner])
 
-        try:
-            # Create tube using sweep_polygon with banking disabled
-            # (keep cross-section oriented consistently)
-            pipe = trimesh.creation.sweep_polygon(polygon=ring, path=points)
-        except Exception as e:
-            logger.error(f"Error creating pipe with sweep_polygon: {e}")
-            continue
-        pipes.append(pipe)
-    if len(pipes) == 0:
-        logger.error("No pipes created")
-        sys.exit(1)
-    # Combine pipes
-    try:
-        combined_pipe = trimesh.boolean.union(pipes)
-    except Exception as e:
-        logger.error(f"Error combining pipes: {e}")
-        sys.exit(1)
-    mesh = combined_pipe
-    # bbox_extents = bbox[1] - bbox[0], bbox[3] - bbox[2], bbox[5] - bbox[4]
-    # bbox_center = (
-    #     (bbox[0] + bbox[1]) / 2,
-    #     (bbox[2] + bbox[3]) / 2,
-    #     (bbox[4] + bbox[5]) / 2,
+    #     try:
+    #         # Create tube using sweep_polygon with banking disabled
+    #         # (keep cross-section oriented consistently)
+    #         pipe = trimesh.creation.sweep_polygon(polygon=ring, path=points)
+    #     except Exception as e:
+    #         logger.error(f"Error creating pipe with sweep_polygon: {e}")
+    #         continue
+    #     pipes.append(pipe)
+    # if len(pipes) == 0:
+    #     logger.error("No pipes created")
+    #     sys.exit(1)
+    # # Combine pipes
+    # try:
+    #     combined_pipe = trimesh.boolean.union(pipes)
+    # except Exception as e:
+    #     logger.error(f"Error combining pipes: {e}")
+    #     sys.exit(1)
+    # mesh = combined_pipe
+    # # bbox_extents = bbox[1] - bbox[0], bbox[3] - bbox[2], bbox[5] - bbox[4]
+    # # bbox_center = (
+    # #     (bbox[0] + bbox[1]) / 2,
+    # #     (bbox[2] + bbox[3]) / 2,
+    # #     (bbox[4] + bbox[5]) / 2,
+    # # )
+    # # bounding_box = trimesh.creation.box(extents=bbox_extents, center=bbox_center)
+    # # mesh = combined_pipe.intersection(bounding_box)
+    # output_filename = json_path.replace(".json", ".stl")
+    # mesh.export(output_filename)
+    # logger.info(f"Saved {output_filename}")
+
+    # sys.exit()
+    # frames, curves, failed_segments = generate_pipe_paths(
+    #     point_dict, group_names, pipe_radius, obb_list=obb_list
     # )
-    # bounding_box = trimesh.creation.box(extents=bbox_extents, center=bbox_center)
-    # mesh = combined_pipe.intersection(bounding_box)
-    output_filename = json_path.replace(".json", ".stl")
-    mesh.export(output_filename)
-    logger.info(f"Saved {output_filename}")
-
-    sys.exit()
-    frames, curves, failed_segments = generate_pipe_paths(
-        point_dict, group_names, pipe_radius, obb_list=obb_list
-    )
 
     save_path = os.path.join(script_dir, "exported_splines.json")
     save_splines_to_json(curves, save_path, num_sample_points=300)
     print(f"Saved {len(curves)} curves to {save_path}")
 
     # points = [point_dict[name] for group in group_names for name in group]
-    visualize_pipe_animation(
-        frames,
-        point_dict=point_dict,
-        group_names=group_names,
-        obb_list=obb_list,
-        failed_segments=failed_segments,
-    )
+    # visualize_pipe_animation(
+    #     frames,
+    #     point_dict=point_dict,
+    #     group_names=group_names,
+    #     obb_list=obb_list,
+    #     failed_segments=failed_segments,
+    # )

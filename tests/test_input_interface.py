@@ -45,6 +45,24 @@ from input_interface import input_interface
         2,
         f"{target_dir}/paired_points.json"
     ),
+        (
+        [
+            "0,0,0", "0,0,-1", "yes","no",
+            "1.7912,0.9,0", "0,0,-1", "true","no",
+            "0,1.7912,0", "0,0,-1", "true","no",
+            "-1.7912,0.9,0", "0,0,-1", "true","no",
+            
+            "0,2.69,0.43", "0,1,0", "no","no",
+            "0,2.69,0.87", "0,1,0", "no","yes",
+
+            # Group connections: air inputs connect to 4 linkage points each
+            "3,5",
+            "2,3",
+            "0.15"
+        ],
+        2,
+        f"{target_dir}/paired_points.json"
+    ),
     # (
     #     [
     #         # Point 0: air input (not linkage)

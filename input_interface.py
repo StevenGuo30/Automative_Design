@@ -17,8 +17,8 @@ def name_generator():
         count += 1
 
 def build_obb(p):
-    LENGTH = 2.1845 - 0.001
-    WIDTH = HEIGHT = 1.7912 - 0.001
+    LENGTH = 2.1845 - 0.1
+    WIDTH = HEIGHT = 1.7912 - 0.1
 
     c = np.array(list(p["coordinates"].values()))
     d = np.array(list(p["directions"].values()))

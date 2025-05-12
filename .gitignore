@@ -9,6 +9,9 @@ __pycache__/
 # all json files
 *.json
 
+# all .blend files
+*.blend
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
